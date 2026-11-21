@@ -34,5 +34,14 @@ Catatan: posisi pemain disinkronkan; NPC berjalan lokal di tiap perangkat.
 - Warga (NPC bernama) punya 60 HP: bisa ditembak/dipukul sampai tumbang, lalu bangkit lagi setelah 12 detik.
 - HP 100 per pemain, mati → respawn 3 detik di halte. 
 
+## Intro, tank & rumah hancur
+- Intro: pesawat melintas, pemain terjun, freefall, parasut mengembang di 60 m, lalu mendarat dekat halte (bisa dilewati).
+- 4 tank + karung pasir di tepi jalan (menaranya berputar pelan).
+- 8 rumah hancur total (puing, dinding patah, api, asap). Rudal jatuh berkala ke reruntuhan dengan ledakan, suara, dan guncangan layar.
+
+## Senjata & militer
+- Senjata yang bisa diambil (peti bercahaya, muncul lagi 30 detik): 🔫 Pistol (awal), ⚡ SMG (full-auto), 💥 Shotgun (8 peluru), 🎯 Senapan (full-auto), 🔭 Sniper (zoom, 70 dmg). Juga peti Amunisi dan Medkit. Tombol ganti senjata memutar semua senjata yang dimiliki. Mati = kehilangan senjata.
+- Semua NPC kini militer (seragam loreng, helm, rompi); kendaraan: jip & truk militer; Medis Ani di Pos Medis memulihkan HP.
+
 ## Kontrol
 Stik kiri = jalan · geser layar = bidik/kamera · 💥 Serang (tahan) · 🔫/👊 ganti senjata · ⤒ Loncat · ▾ Jongkok (toggle) · » Lari (tahan) · 💬 bicara dengan NPC terdekat.

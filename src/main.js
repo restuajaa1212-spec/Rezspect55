@@ -7,6 +7,9 @@ import { createNPCs } from './npc.js';
 import { SKINS, makeAvatar, pose } from './skins.js';
 import { tag } from './util.js';
 import { buildViewmodel, animVM } from './viewmodel.js';
+import { buildPlane, buildChute } from './setpieces.js';
+import { WEAPONS } from './weapons.js';
+import { buildPickups } from './pickups.js';
 import { Sfx } from './audio.js';
 import { Input } from './controls.js';
 import { Net } from './net.js';
@@ -25,16 +28,17 @@ const resize = () => { renderer.setSize(innerWidth, innerHeight); camera.aspect 
 addEventListener('resize', resize); resize();
 camera.rotation.order = 'YXZ'; camera.near = .05; camera.updateProjectionMatrix(); scene.add(camera); // kamera orang pertama (viewmodel jadi anak kamera)
 
-const sfx = new Sfx(), world = buildWorld(scene), lobby = buildLobby(scene), npcs = createNPCs(scene, sfx), input = new Input(canvas);
+const sfx = new Sfx(), world = buildWorld(scene, sfx), lobby = buildLobby(scene), npcs = createNPCs(scene, sfx), pickups = buildPickups(scene), input = new Input(canvas);
 // Kotak tabrakan untuk raycast peluru (bangunan & pohon menghalangi tembakan)
 const boxes = colliders.map(c => new THREE.Box3(new THREE.Vector3(c.x - c.hx, 0, c.z - c.hz), new THREE.Vector3(c.x + c.hx, 6, c.z + c.hz)));
 
 // ---------- State pemain ----------
 let me = null, vm = null, mySkin = (+localStorage.getItem('dx_skin')) || 0;
 const P = { x: -20, y: 0, z: 5.3, vy: 0, yaw: 0, pitch: .25, ph: 0, moving: false, cs: 1, wasWater: false };
-const MAXAMMO = 12;
-const W = { hp: 100, w: 0, ammo: MAXAMMO, reload: 0, cd: 0, atk: 0, dead: 0, last: 0, meds: 3, healCd: 0, hand: 0 }; // w: 0=tinju 1=pistol
-let state = 'lobby', introT = 0, stopT = 0, spawned = false, idx = 0;
+// w = id senjata aktif (0 tinju). own/mag/res = kepemilikan, isi magasin, cadangan peluru per senjata
+const W = { hp: 100, w: 0, cd: 0, atk: 0, dead: 0, last: 0, meds: 3, healCd: 0, hand: 0, reload: 0, held: false, q: false,
+  own: [true, true, false, false, false, false], mag: [0, 12, 0, 0, 0, 0], res: [0, 36, 0, 0, 0, 0] };
+let state = 'lobby', idx = 0;
 
 function collide(r = .5) {
   for (const c of colliders) {
@@ -47,12 +51,17 @@ function collide(r = .5) {
 let gm = 7 * 60; // jam game: 1 detik nyata = 1 menit
 function tickClock(dt) { gm = (gm + dt) % 1440; $('clock').textContent = String(Math.floor(gm / 60)).padStart(2, '0') + ':' + String(Math.floor(gm % 60)).padStart(2, '0'); }
 let toastT; function toast(s) { const t = $('toast'); t.textContent = s; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2400); }
-function updWpn() { $('wpn').textContent = W.w ? (W.reload > 0 ? '🔫 Reload…' : `🔫 Pistol ${W.ammo}/${MAXAMMO}`) : '👊 Tinju'; $('wpn').textContent += ` · 🩹${W.meds}`; $('bWeap').textContent = W.w ? '👊' : '🔫'; }
+function nextWeapon() { for (let k = 1; k <= WEAPONS.length; k++) { const i = (W.w + k) % WEAPONS.length; if (W.own[i]) return i; } return W.w; }
+function updWpn() {
+  const c = WEAPONS[W.w];
+  $('wpn').textContent = (c.melee ? '👊 Tinju' : `${c.icon} ${c.n} ${W.reload > 0 ? 'Reload…' : W.mag[W.w] + '/' + W.res[W.w]}`) + ` · 🩹${W.meds}`;
+  $('bWeap').textContent = WEAPONS[nextWeapon()].icon;
+}
 const updHp = () => $('hpb').style.width = W.hp + '%';
 function healFlash() { const f = $('flash'); f.classList.add('heal', 'on'); setTimeout(() => f.classList.remove('heal', 'on'), 160); }
 function heal() { // pakai medkit: +40 HP
   if (W.healCd > 0) return;
-  if (W.meds <= 0) { toast('Medkit habis! Temui Suster Ani di Klinik'); return; }
+  if (W.meds <= 0) { toast('Medkit habis! Temui Medis Ani di Pos Medis'); return; }
   if (W.hp >= 100) { toast('HP sudah penuh'); return; }
   W.meds--; W.hp = Math.min(100, W.hp + 40); W.healCd = 1.2; sfx.heal(); healFlash(); updHp(); updWpn();
 }
@@ -80,7 +89,7 @@ function remote(id, name, skin) {
     const g = makeAvatar(skin || 0), t = tag(name || 'Pemain'); t.position.y = 2.5; g.add(t);
     const bg = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x300000, depthTest: false })), bar = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x00e676, depthTest: false }));
     for (const s of [bg, bar]) { s.center.set(0, .5); s.position.set(-.6, 2.25, 0); s.scale.set(1.2, .12, 1); g.add(s); }
-    scene.add(g); r = { id, g, bar, x: 0, y: 0, z: 0, r: 0, a: 0, w: 0, hp: 100, ph: 0, atk: 0 }; remotes.set(id, r);
+    g.visible = false; scene.add(g); r = { id, g, bar, seen: false, x: 0, y: 0, z: 0, r: 0, a: 0, w: 0, hp: 100, ph: 0, atk: 0 }; remotes.set(id, r);
   }
   return r;
 }
@@ -120,7 +129,7 @@ function castRay(o, d, range) {
 }
 function hurtNpc(e, dmg) { // warga bisa terluka sampai mati (bangkit lagi setelah 12 detik)
   e.hp -= dmg;
-  if (e.hp <= 0) { e.dead = 12; e.fall = 0; e.busy = true; if (current === e) closeDialog(); sfx.hurt(); toast('Warga tumbang!'); }
+  if (e.hp <= 0) { e.dead = 12; e.fall = 0; e.busy = true; if (current === e) closeDialog(); sfx.hurt(); toast('Prajurit tumbang!'); }
   else { e.stun = 1.5; e.busy = true; }
 }
 function applyHit(tgt, dmg) {
@@ -128,15 +137,27 @@ function applyHit(tgt, dmg) {
   if (tgt.id !== undefined) net && net.send({ t: 'hit', to: tgt.id, dmg });
   else hurtNpc(tgt, dmg);
 }
-function shoot() {
-  if (W.ammo <= 0) { W.reload = 1.2; sfx.click(); updWpn(); return; }
-  W.ammo--; W.cd = .25; W.atk = 1; sfx.shot();
-  camera.updateMatrixWorld(true); const o = camera.position.clone(), d = new THREE.Vector3(); camera.getWorldDirection(d);
-  const h = castRay(o, d, 70), end = o.clone().addScaledVector(d, h.dist);
-  tracer(vm.tip.getWorldPosition(new THREE.Vector3()), end);
-  net && net.send({ t: 'fx', k: 'g', ex: +end.x.toFixed(1), ey: +end.y.toFixed(1), ez: +end.z.toFixed(1) });
-  if (h.tgt) applyHit(h.tgt, h.head ? 40 : 20);
-  if (W.ammo === 0) W.reload = 1.2; updWpn();
+function startReload() {
+  const c = WEAPONS[W.w];
+  if (W.reload > 0 || W.mag[W.w] >= c.mag || W.res[W.w] <= 0) return;
+  W.reload = c.reload; sfx.click(); updWpn();
+}
+function shoot(c) {
+  const id = W.w;
+  if (W.mag[id] <= 0) { if (W.res[id] > 0) startReload(); else { sfx.click(); W.cd = .4; toast('Peluru habis! Cari amunisi'); } return; }
+  W.mag[id]--; W.cd = c.cd; W.atk = 1; sfx.shot(); if (c.pellets > 1) sfx.explode(.2);
+  camera.updateMatrixWorld(true);
+  const o = camera.position.clone(), base = new THREE.Vector3(); camera.getWorldDirection(base);
+  const tip = vm.tips[id].getWorldPosition(new THREE.Vector3()), hits = new Map(); let first = null;
+  for (let k = 0; k < c.pellets; k++) { // shotgun = banyak peluru; spread = penyebaran
+    const d = base.clone(); if (c.spread) { d.x += (Math.random() - .5) * c.spread * 2; d.y += (Math.random() - .5) * c.spread * 2; d.z += (Math.random() - .5) * c.spread * 2; d.normalize(); }
+    const h = castRay(o, d, c.range), end = o.clone().addScaledVector(d, h.dist); tracer(tip, end); if (!first) first = end;
+    if (h.tgt) hits.set(h.tgt, (hits.get(h.tgt) || 0) + (h.head ? c.dmg * 2 : c.dmg));
+  }
+  net && net.send({ t: 'fx', k: 'g', ex: +first.x.toFixed(1), ey: +first.y.toFixed(1), ez: +first.z.toFixed(1) });
+  for (const [t, dmg] of hits) applyHit(t, dmg);
+  P.pitch = clamp(P.pitch + c.kick, -1.3, 1.3);
+  if (W.mag[id] === 0) startReload(); updWpn();
 }
 function punch() {
   W.cd = .45; W.atk = 1; W.hand ^= 1; sfx.punch(); net && net.send({ t: 'fx', k: 'p' });
@@ -148,46 +169,86 @@ function punch() {
   if (best) applyHit(best, 12);
 }
 function combat(dt) {
-  if (input.weap()) { W.w = 1 - W.w; W.reload = 0; sfx.click(); updWpn(); }
-  if (input.fire && W.cd <= 0 && W.reload <= 0) W.w ? shoot() : punch();
+  if (input.weap()) { W.w = nextWeapon(); W.reload = 0; W.q = false; sfx.click(); updWpn(); }
+  const c = WEAPONS[W.w], fire = input.fire, fresh = fire && !W.held; W.held = fire;
+  if (fresh) W.q = true; if (W.reload > 0) W.q = false;
+  const want = (c.melee || c.auto) ? fire : W.q; // senjata semi-auto: satu tembakan per ketukan
+  if (want && W.cd <= 0 && W.reload <= 0) { W.q = false; c.melee ? punch() : shoot(c); }
+}
+// Ambil item: senjata baru (otomatis dipegang), amunisi untuk semua senjata, atau medkit
+function pickup(s) {
+  if (s.t === 'w') {
+    const c = WEAPONS[s.id];
+    if (W.own[s.id]) W.res[s.id] += c.mag * 2; else { W.own[s.id] = true; W.mag[s.id] = c.mag; W.res[s.id] = c.mag * 2; W.w = s.id; W.reload = 0; }
+    toast(`Mengambil ${c.n}`);
+  } else if (s.t === 'ammo') { WEAPONS.forEach((c, i) => { if (W.own[i] && !c.melee) W.res[i] += c.mag; }); toast('Amunisi +1 magasin'); }
+  else { W.meds = Math.min(5, W.meds + 1); toast('Medkit +1'); }
+  sfx.pickup(); updWpn();
 }
 function die() {
   W.dead = 3; W.hp = 0; updHp(); net && net.send({ t: 'kill', by: W.last, victim: myId }); toast('Kamu kalah! Respawn 3 detik…'); closeDialog();
 }
 function respawn() {
-  W.hp = 100; W.ammo = MAXAMMO; W.reload = 0; W.dead = 0; updHp(); updWpn();
+  W.hp = 100; W.reload = 0; W.dead = 0; W.w = 0; W.meds = 3; W.own = [true, true, false, false, false, false]; W.mag = [0, 12, 0, 0, 0, 0]; W.res = [0, 36, 0, 0, 0, 0]; // kehilangan senjata saat mati
+  updHp(); updWpn();
   P.x = -20 + idx * 1.4 + Math.random() * 3; P.z = 5.4; P.y = 0; me.rotation.x = 0;
 }
 
 // ---------- Alur game ----------
+const Y0 = 100; // ketinggian pesawat
+let intro = null, plane = null, chute = null;
 function startGame() {
-  sfx.init(); state = 'intro'; introT = 0; stopT = 0; spawned = false;
+  sfx.init(); state = 'intro';
   idx = Math.max(0, roster.findIndex(p => p.id === myId));
   lobby.group.visible = false; $('lobby').classList.add('hide'); $('skip').classList.remove('hide'); $('clock').classList.remove('hide');
   if (me) scene.remove(me); me = makeAvatar(mySkin); me.visible = false; scene.add(me);
   if (vm) camera.remove(vm.g); vm = buildViewmodel(mySkin); camera.add(vm.g);
   roster.forEach(p => { if (p.id !== myId) remote(p.id, p.name, p.skin); });
-  npcs.bus.start(); updWpn(); updHp();
+  const Lx = -20 + idx * 1.4, Lz = 5.4; // titik mendarat dekat halte
+  intro = { t: 0, Lx, Lz, Jx: Lx - 45, Jz: Lz - 8, y: Y0, vy: 0, open: 0, jumped: false, opened: false, land: 0, wind: 0 };
+  plane = buildPlane(); scene.add(plane); chute = buildChute(); chute.visible = false; me.add(chute);
+  updWpn(); updHp();
 }
-function spawnPlayer() { spawned = true; me.visible = true; P.x = -20 + idx * 1.4; P.z = 5.4; P.yaw = 0; P.pitch = 0; me.rotation.y = Math.PI; sfx.step(false); }
-function endIntro() { state = 'play'; me.visible = false; $('skip').classList.add('hide'); $('hud').classList.remove('hide'); npcs.bus.depart(); }
-$('skip').onclick = () => { if (!spawned) spawnPlayer(); endIntro(); };
+function finishIntro() {
+  if (!intro) return;
+  me.remove(chute); scene.remove(plane);
+  for (const k of ['armL', 'armR', 'legL', 'legR']) me[k].rotation.set(0, 0, 0);
+  P.x = intro.Lx; P.z = intro.Lz; P.y = 0; P.yaw = 0; P.pitch = 0; me.rotation.set(0, Math.PI, 0); me.position.set(P.x, 0, P.z); me.visible = false;
+  intro = null; state = 'play'; $('skip').classList.add('hide'); $('hud').classList.remove('hide');
+}
+$('skip').onclick = finishIntro;
 
+// Cutscene: pesawat lewat -> pemain terjun -> freefall -> parasut mengembang -> mendarat
 function updateIntro(dt) {
-  introT += dt; const b = npcs.bus, bx = b.g.position.x, k = Math.min(introT / 9, 1);
-  camera.position.set(bx + 9 - k * 5, 2.4 + k * .6, 11); camera.lookAt(bx + 1, 1.6, 2.5); // kamera sinematik
-  if (b.state === 'stopped') {
-    stopT += dt;
-    if (!b.open && stopT > 1) { b.open = true; sfx.door(); }
-    if (stopT > 2.6 && !spawned) spawnPlayer();
-    if (stopT > 4) endIntro();
+  const I = intro; I.t += dt;
+  const px = I.Jx - 100 + 40 * I.t; plane.position.set(px, Y0, I.Jz);
+  if (!I.jumped) {
+    camera.position.set(I.Jx - 25, Y0 - 8, I.Jz + 30); camera.lookAt(px, Y0, I.Jz);
+    if (I.t >= 2.5) { I.jumped = true; me.visible = true; me.rotation.set(1.35, Math.PI / 2, 0); sfx.door(); }
+    return;
   }
+  if (!I.opened) I.vy = Math.min(I.vy + 32 * dt, 30); else I.vy += (7 - I.vy) * Math.min(1, dt * 2.5);
+  I.y = Math.max(0, I.y - I.vy * dt);
+  const f = I.y / Y0, x = I.Lx + (I.Jx - I.Lx) * f, z = I.Lz + (I.Jz - I.Lz) * f; // melayang menuju titik mendarat
+  me.position.set(x, I.y, z);
+  if (!I.opened) { // freefall: tangan & kaki terentang
+    me.armL.rotation.set(0, 0, -1.3); me.armR.rotation.set(0, 0, 1.3); me.legL.rotation.set(0, 0, -.3); me.legR.rotation.set(0, 0, .3);
+    if ((I.wind -= dt) <= 0) { I.wind = .4; sfx.wind(); }
+    if (I.y <= 60) { I.opened = true; chute.visible = true; chute.scale.setScalar(.2); sfx.chute(); }
+  } else { // parasut terbuka: badan tegak, tangan memegang tali
+    I.open = Math.min(1, I.open + dt * 1.8); chute.scale.setScalar(I.land > 0 ? Math.max(.01, 1 - I.land * 2.5) : .2 + .8 * I.open);
+    me.rotation.x += (0 - me.rotation.x) * Math.min(1, dt * 4);
+    me.armL.rotation.set(-2.8, 0, 0); me.armR.rotation.set(-2.8, 0, 0); me.legL.rotation.set(Math.sin(I.t * 2) * .15, 0, 0); me.legR.rotation.set(-Math.sin(I.t * 2) * .15, 0, 0);
+  }
+  camera.position.set(x + 9, Math.max(1.6, I.y + 2), z + 13); camera.lookAt(x, I.y + 1.5, z);
+  if (I.y <= 0) { I.land += dt; if (I.land > .7) finishIntro(); }
 }
 
 function updatePlay(dt) {
   // Kamera: geser layar = membidik (yaw & pitch)
-  P.yaw -= input.drag.x * .005; P.pitch = clamp(P.pitch - input.drag.y * .004, -1.3, 1.3); input.drag.x = input.drag.y = 0;
+  const sens = camera.fov / 62; P.yaw -= input.drag.x * .005 * sens; P.pitch = clamp(P.pitch - input.drag.y * .004 * sens, -1.3, 1.3); input.drag.x = input.drag.y = 0;
   const alive = W.dead <= 0;
+  const tf = WEAPONS[W.w].zoom && alive ? 28 : 62; if (Math.abs(camera.fov - tf) > .1) { camera.fov += (tf - camera.fov) * Math.min(1, dt * 10); camera.updateProjectionMatrix(); } // zoom sniper
   if (!alive) { W.dead -= dt; if (W.dead <= 0) respawn(); }
   const mv = alive ? input.move() : { x: 0, y: 0 }, len = Math.hypot(mv.x, mv.y), sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
   const crouch = input.crouch, run = input.running && !crouch, water = inWater(P.x, P.z);
@@ -203,7 +264,7 @@ function updatePlay(dt) {
   if (water && !P.wasWater) sfx.splash(); P.wasWater = water;
   // Combat & timer
   W.cd -= dt; W.healCd -= dt; W.atk = Math.max(0, W.atk - dt * 4);
-  if (W.reload > 0) { W.reload -= dt; if (W.reload <= 0) { W.ammo = MAXAMMO; updWpn(); } }
+  if (W.reload > 0) { W.reload -= dt; if (W.reload <= 0) { const c = WEAPONS[W.w], take = Math.min(c.mag - W.mag[W.w], W.res[W.w]); W.mag[W.w] += take; W.res[W.w] -= take; updWpn(); } }
   if (alive) combat(dt); const hl = input.heal(); if (alive && hl) heal();
   for (const l of tr) if (l.visible && (l.ttl -= dt) <= 0) l.visible = false;
   for (const e of npcs.inter) { // status warga: mati (tumbang lalu bangkit) / kaget
@@ -288,7 +349,8 @@ function onNet(m) {
     if (state === 'lobby') refreshStage();
   }
   else if (m.t === 'start') startGame();
-  else if (m.t === 'st') { const r = remote(m.id, names(m.id), (roster.find(p => p.id === m.id) || {}).skin); Object.assign(r, { x: m.x, y: m.y, z: m.z, r: m.r, a: m.a, w: m.w || 0, hp: m.h ?? 100 }); }
+  else if (m.t === 'st') { const r = remote(m.id, names(m.id), (roster.find(p => p.id === m.id) || {}).skin); if (!r.seen) { r.seen = true; r.g.visible = true; r.g.position.set(m.x, m.y, m.z); }
+    Object.assign(r, { x: m.x, y: m.y, z: m.z, r: m.r, a: m.a, w: m.w || 0, hp: m.h ?? 100 }); }
   else if (m.t === 'fx') {
     const r = remotes.get(m.from); if (!r) return; r.atk = 1;
     if (m.k === 'g') { tracer(new THREE.Vector3(r.g.position.x, r.g.position.y + 1.4, r.g.position.z), new THREE.Vector3(m.ex, m.ey, m.ez)); sfx.shot(); } else sfx.punch();
@@ -310,13 +372,15 @@ const clk = new THREE.Clock(); refreshStage();
 function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clk.getDelta(), .05), t = clk.elapsedTime;
-  world.update(dt);
+  world.update(dt, t, state === 'lobby' ? null : P);
+  pickups.update(dt, t, state === 'play' && W.dead <= 0 ? P : null, pickup);
   const near = npcs.update(dt, t, state === 'lobby' ? { x: 0, z: 0 } : P);
   if (state === 'lobby') { // kamera panggung lobi + animasi diam karakter
     camera.position.set(2.8, 2.3, STAGE_Z + 8.8); camera.lookAt(2.8, 1.4, STAGE_Z);
     stage.forEach((s, i) => { if (s) { s.g.rotation.y = Math.sin(t * (s.me ? 1 : .7) + i) * (s.me ? .8 : .3); pose(s.g, { ph: t * 2, amt: .05 }); } });
   } else if (state === 'intro') updateIntro(dt); else updatePlay(dt);
   if (state !== 'lobby') { sfx.setEngine(clamp(1 - near / 35, 0, 1)); sfx.setRiver(clamp(1 - Math.abs(P.z - RIVER_Z) / 50, 0, 1)); tickClock(dt); }
+  if (world.shake > 0 && state !== 'lobby') { camera.position.x += (Math.random() - .5) * world.shake * .5; camera.position.y += (Math.random() - .5) * world.shake * .5; } // guncangan ledakan
   updateRemotes(dt); renderer.render(scene, camera);
 }
 loop();

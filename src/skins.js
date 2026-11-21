@@ -28,7 +28,7 @@ export function makeAvatar(i) {
 export function pose(g, { ph = 0, amt = 0, w = 0, atk = 0 }) {
   const s = Math.sin(ph) * amt;
   g.legL.rotation.x = s; g.legR.rotation.x = -s;
-  if (w === 1) { g.armR.rotation.x = -1.5 - atk * .35; g.armL.rotation.x = -1.3; g.armL.rotation.z = .25; }
+  if (w > 0) { g.armR.rotation.x = -1.5 - atk * .35; g.armL.rotation.x = -1.3; g.armL.rotation.z = .25; }
   else { g.armL.rotation.z = 0; g.armL.rotation.x = -s * .8; g.armR.rotation.x = s * .8 - (atk > 0 ? 1.9 * Math.sin((1 - atk) * Math.PI) : 0); }
-  if (g.gun) g.gun.visible = w === 1;
+  if (g.gun) { g.gun.visible = w > 0; g.gun.scale.y = [1, 1, 1.3, 1.8, 1.7, 2.1][w] || 1; }
 }

@@ -1,6 +1,7 @@
 // Dunia desa: jalan, sungai, rumah, bangunan khusus, pohon, tiang listrik, lapangan, langit & awan.
 import * as THREE from 'three';
 import { M, box, label, rnd } from './util.js';
+import { buildWar } from './war.js';
 
 export const colliders = [];               // kotak tabrakan (AABB) di bidang XZ
 const solid = (x, z, w, d) => colliders.push({ x, z, hx: w / 2, hz: d / 2 });
@@ -8,7 +9,7 @@ export const FIELD = { x: 70, z: -50, w: 36, d: 24 };
 export const RIVER_Z = 48;
 export const inWater = (x, z) => Math.abs(z - RIVER_Z) < 4.5 && Math.abs(x) > 3.5; // di luar jembatan
 
-export function buildWorld(scene) {
+export function buildWorld(scene, sfx) {
   // ---- Langit, kabut & cahaya ----
   scene.background = new THREE.Color(0x87ceeb);
   scene.fog = new THREE.Fog(0x9fd8f5, 70, 230);
@@ -47,17 +48,22 @@ export function buildWorld(scene) {
   const wallCols = [0xf5e6c8, 0xe8c9a0, 0xcfe3d4, 0xd9d2e9, 0xf6d5d5, 0xfff3b0];
   const pickC = i => wallCols[Math.abs(i) % wallCols.length];
   // Baris rumah warga (utara z=-18, selatan z=18, belakang z=-34)
+  const war = buildWar(scene, solid, sfx);
+  const RU = new Set(['n3', 'n4', 's-3', 's2', 's3', 's4', 't-4', 't-3']); // rumah yang hancur terkena rudal
+  const place = (key, o, rx, rz) => RU.has(key) ? war.ruin(rx, rz) : bld(o);
   for (let i = -4; i <= 4; i++) {
     const x = i * 22;
-    if (i !== -2 && i !== 1) bld({ x, z: -18, wall: pickC(i + 2) });
-    if (i !== 0) bld({ x, z: 18, wall: pickC(i + 5) });
-    if (i >= -4 && i <= 1 && i % 1 === 0) bld({ x: x * 1.3, z: -34, wall: pickC(i + 1), w: 8, d: 7 });
+    if (i !== -2 && i !== 1) place('n' + i, { x, z: -18, wall: pickC(i + 2) }, x, -18);
+    if (i !== 0) place('s' + i, { x, z: 18, wall: pickC(i + 5) }, x, 18);
+    if (i <= 1) place('t' + i, { x: x * 1.3, z: -34, wall: pickC(i + 1), w: 8, d: 7 }, x * 1.3, -34);
   }
+  // Tank di tepi jalan
+  war.tank(-64, -12, 0, 0x4b5d2a); war.tank(46, -12, Math.PI, 0xa89968); war.tank(-85, 11, Math.PI, 0x4b5d2a); war.tank(75, 11, 0, 0xa89968);
   // Bangunan khusus
   bld({ x: 22, z: -20, w: 12, d: 9, h: 4.5, wall: 0x3b5fc0, roof: 0x1a2f6b, sign: 'POLISI' });
-  const clinic = bld({ x: -44, z: -20, w: 13, d: 9, h: 4.5, wall: 0xf2f2f2, roof: 0xd32f2f, sign: 'KLINIK' });
+  const clinic = bld({ x: -44, z: -20, w: 13, d: 9, h: 4.5, wall: 0xf2f2f2, roof: 0xd32f2f, sign: 'POS MEDIS' });
   box(1.6, .5, .15, 0xd32f2f, 4.4, 3.2, 4.6, clinic); box(.5, 1.6, .15, 0xd32f2f, 4.4, 3.2, 4.6, clinic);
-  bld({ x: -100, z: -10, w: 3.5, d: 3.5, h: 2.6, wall: 0x6d8b74, sign: 'POS SATPAM', fl: true });
+  bld({ x: -100, z: -10, w: 3.5, d: 3.5, h: 2.6, wall: 0x6d8b74, sign: 'POS JAGA', fl: true });
   box(.15, .15, 7, 0xff5722, -100, 1, -6.5 + 3, scene); // palang
 
   // ---- Warung (area duduk + penjual) ----
@@ -90,6 +96,7 @@ export function buildWorld(scene) {
   // ---- Pohon ----
   const free = (x, z, pad) => {
     if (Math.abs(z) < 10 || Math.abs(z - RIVER_Z) < 10 || (Math.abs(x) < 5 && z > 0)) return false;
+    if (war.sites.some(q => Math.hypot(x - q.x, z - q.z) < 7)) return false;
     if (Math.abs(x - FIELD.x) < FIELD.w / 2 + 4 && Math.abs(z - FIELD.z) < FIELD.d / 2 + 4) return false;
     return !colliders.some(c => Math.abs(x - c.x) < c.hx + pad && Math.abs(z - c.z) < c.hz + pad);
   };
@@ -120,6 +127,7 @@ export function buildWorld(scene) {
     c.position.set(rnd(-200, 200), rnd(50, 75), rnd(-200, 200)); scene.add(c); clouds.push(c);
   }
   return {
-    update(dt) { for (const c of clouds) { c.position.x += dt * 1.5; if (c.position.x > 220) c.position.x = -220; } }
+    update(dt, t, P) { for (const c of clouds) { c.position.x += dt * 1.5; if (c.position.x > 220) c.position.x = -220; } war.update(dt, t, P); },
+    get shake() { return war.shake; }
   };
 }

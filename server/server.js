@@ -23,7 +23,7 @@ wss.on('connection', ws => {
     } else if (!ws.r) return;
     else if (m.t === 'start' && ws.p.id === ws.r.host) { ws.r.started = true; bc(ws.r, { t: 'start' }); }
     else if (m.t === 'skin') { ws.p.skin = m.s | 0; const i = info(ws.r); ws.r.players.forEach(q => send(q.ws, i)); }
-    else if (m.t === 'hit') { const q = ws.r.players.find(p => p.id === m.to); if (q) send(q.ws, { t: 'hit', from: ws.p.id, dmg: Math.min(60, +m.dmg || 0) }); }
+    else if (m.t === 'hit') { const q = ws.r.players.find(p => p.id === m.to); if (q) send(q.ws, { t: 'hit', from: ws.p.id, dmg: Math.min(100, +m.dmg || 0) }); }
     else if (m.t === 'fx' || m.t === 'kill') bc(ws.r, { ...m, from: ws.p.id }, ws);
     else if (m.t === 'st') bc(ws.r, { t: 'st', id: ws.p.id, x: m.x, y: m.y, z: m.z, r: m.r, a: m.a, w: m.w, h: m.h }, ws);
   });

@@ -47,4 +47,9 @@ export class Sfx {
   hurt() { this.tone(200, .2, 'sawtooth', .08, -100); }
   click() { this.tone(1200, .03, 'square', .04); }
   heal() { this.tone(520, .12, 'sine', .08); setTimeout(() => this.tone(780, .2, 'sine', .08), 110); }
+  explode(v = 1) { this.noise(1.2, .35 * v, 200); this.tone(60, .8, 'sine', .3 * v, -30); }
+  whistle(v = 1) { this.tone(1600, 3, 'sine', .04 * v, -1200); }
+  wind() { this.noise(.4, .08, 700); }
+  chute() { this.noise(.5, .25, 900); this.tone(150, .3, 'sine', .1, -60); }
+  pickup() { this.tone(660, .08, 'square', .05); setTimeout(() => this.tone(990, .12, 'square', .05), 80); }
 }

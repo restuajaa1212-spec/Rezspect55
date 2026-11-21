@@ -5,7 +5,11 @@ import { FIELD } from './world.js';
 
 const rc = () => [0xd9534f, 0x5bc0de, 0xf0ad4e, 0x5cb85c, 0x9b59b6, 0xe67e22, 0xffffff][Math.floor(Math.random() * 7)];
 const pick = a => a[Math.floor(Math.random() * a.length)];
-const TALK = ['Selamat pagi! Cuacanya cerah ya.', 'Kalau lapar, mampir ke warung.', 'Hati-hati, motor suka ngebut di sini.', 'Air sungai di selatan jernih banget.', 'Sore nanti ada main bola di lapangan.'];
+const TALK_OLD = ['Selamat pagi! Cuacanya cerah ya.', 'Kalau lapar, mampir ke warung.', 'Hati-hati, motor suka ngebut di sini.', 'Air sungai di selatan jernih banget.', 'Sore nanti ada main bola di lapangan.'];
+
+const TALK = ['Siap! Desa ini dalam pengawasan.', 'Tetap waspada, rudal masih sering jatuh.', 'Warung buka, istirahatlah sebentar.', 'Hati-hati, kendaraan taktis lewat.', 'Lapangan dipakai latihan fisik sore ini.'];
+const CAMO = [{ s: 0x4b5d2a, p: 0x3b4a24, h: 0x3d4a22 }, { s: 0xa89968, p: 0x8f8157, h: 0x8a7c4f }, { s: 0x5a6b3a, p: 0x2f3b1f, h: 0x2f3b1f }];
+const TONES = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524];
 
 // Model manusia blocky: kaki/tangan adalah pivot yang bisa diayun
 export function humanoid(shirt, pants, skin = 0xf1c27d) {
@@ -17,6 +21,15 @@ export function humanoid(shirt, pants, skin = 0xf1c27d) {
   g.armL = limb(.2, .8, .25, shirt, -.48, 1.65); g.armR = limb(.2, .8, .25, shirt, .48, 1.65);
   return g;
 }
+// Prajurit: seragam loreng, helm, rompi, senapan di punggung (medic = helm putih + palang merah)
+export function soldier(k = Math.floor(Math.random() * 3), medic = false) {
+  const c = CAMO[k % 3], g = humanoid(c.s, c.p, pick(TONES));
+  const hm = new THREE.Mesh(new THREE.SphereGeometry(.36, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), M(medic ? 0xf5f5f5 : c.h)); hm.position.y = 1.93; g.add(hm);
+  box(.8, .55, .46, medic ? 0xeeeeee : 0x2b3320, 0, 1.32, 0, g);
+  if (medic) { box(.25, .08, .02, 0xd32f2f, 0, 1.38, .24, g); box(.08, .25, .02, 0xd32f2f, 0, 1.38, .24, g); }
+  else { const r = box(.08, .9, .1, 0x1c1c1c, .15, 1.25, -.3, g); r.rotation.z = .35; }
+  return g;
+}
 export function walkAnim(g, ph, amt = .7) {
   const s = Math.sin(ph) * amt;
   g.legL.rotation.x = s; g.legR.rotation.x = -s; g.armL.rotation.x = -s; g.armR.rotation.x = s;
@@ -24,18 +37,18 @@ export function walkAnim(g, ph, amt = .7) {
 const wheel = (p, x, y, z, r = .35) => { const w = new THREE.Mesh(new THREE.CylinderGeometry(r, r, .25, 10), M(0x111111)); w.rotation.x = Math.PI / 2; w.position.set(x, y, z); p.add(w); };
 // Kendaraan menghadap +X
 function motorModel() {
-  const g = new THREE.Group(); box(1.8, .4, .5, rc(), 0, .7, 0, g); wheel(g, .8, .35, 0); wheel(g, -.8, .35, 0);
-  const r = humanoid(rc(), 0x223344); r.scale.setScalar(.75); r.position.set(-.1, .3, 0); r.rotation.y = Math.PI / 2;
+  const g = new THREE.Group(); box(1.8, .4, .5, 0x4b5d2a, 0, .7, 0, g); wheel(g, .8, .35, 0); wheel(g, -.8, .35, 0);
+  const r = soldier(); r.scale.setScalar(.75); r.position.set(-.1, .3, 0); r.rotation.y = Math.PI / 2;
   r.legL.rotation.x = r.legR.rotation.x = -1.2; g.add(r); return g;
 }
-function carModel() {
-  const g = new THREE.Group(), c = rc();
-  box(4.2, .9, 1.9, c, 0, .75, 0, g); box(2.2, .8, 1.7, 0x9fd3ff, -.2, 1.55, 0, g);
-  for (const x of [-1.4, 1.4]) for (const z of [-.95, .95]) wheel(g, x, .4, z, .4); return g;
+function carModel() { // jip militer
+  const g = new THREE.Group(), c = pick([0x4b5d2a, 0xa89968]);
+  box(3.8, .8, 1.9, c, 0, .8, 0, g); box(1.5, .8, 1.8, 0x9fd3ff, -.5, 1.55, 0, g); box(1.8, .12, 1.9, 0x6b7a3e, -.5, 2.0, 0, g); box(.6, .02, .6, 0xffffff, 1.1, 1.22, 0, g);
+  for (const x of [-1.3, 1.3]) for (const z of [-.95, .95]) wheel(g, x, .4, z, .4); return g;
 }
 function busModel() {
   const g = new THREE.Group();
-  box(10, 2.6, 2.6, 0xe8b923, 0, 1.7, 0, g);
+  box(10, 2.6, 2.6, 0x4b5d2a, 0, 1.7, 0, g); box(9.4, .4, 2.7, 0x6b7a3e, 0, 3.2, 0, g); box(1, .02, 1, 0xffffff, 3.2, 3.42, 0, g);
   for (const z of [-1.31, 1.31]) box(8, .9, .05, 0x9fd3ff, -.6, 2.2, z, g);
   for (const x of [-3, 3]) for (const z of [-1.2, 1.2]) wheel(g, x, .5, z, .5);
   const door = new THREE.Group(); door.position.set(2.4, 0, 1.32); box(1.3, 2.1, .08, 0x2b6cb0, .65, 1.15, 0, door); g.add(door);
@@ -50,8 +63,8 @@ export function createNPCs(scene, sfx) {
   };
 
   // 1) NPC jalan kaki di trotoar
-  ['Pak Budi', 'Bu Sari', 'Andi', 'Siti', 'Joko', 'Dewi', 'Rudi', 'Wati'].forEach((n, i) => {
-    const g = humanoid(rc(), rc()), e = add(g, n, [pick(TALK), pick(TALK)]);
+  ['Prada Budi', 'Koptu Sari', 'Sertu Andi', 'Prada Siti', 'Letda Joko', 'Kopda Dewi', 'Prada Rudi', 'Serka Wati'].forEach((n, i) => {
+    const g = soldier(i % 3), e = add(g, n, [pick(TALK), pick(TALK)]);
     let dir = i % 2 ? 1 : -1, ph = rnd(0, 6); const sp = rnd(1.2, 1.8);
     g.position.set(rnd(-90, 90), 0, i % 4 < 2 ? 6.7 : -6.7);
     movers.push(dt => {
@@ -67,9 +80,9 @@ export function createNPCs(scene, sfx) {
   for (let i = 0; i < 3; i++) mkVeh(carModel(), i % 2 ? -1 : 1, rnd(6, 8));
 
   // 3) Bus intro (state: wait -> arrive -> stopped -> depart -> traffic)
-  const bm = busModel(); bm.g.position.set(-110, 0, 2.5); bm.g.visible = false; scene.add(bm.g);
+  const bm = busModel(); bm.g.position.set(-110, 0, 2.5); scene.add(bm.g);
   const bus = {
-    g: bm.g, state: 'wait', t: 0, open: false, door: 0, vel: 0,
+    g: bm.g, state: 'traffic', t: 0, open: false, door: 0, vel: 0,
     start() { this.state = 'arrive'; this.t = 0; this.g.visible = true; this.g.position.x = -110; },
     depart() { if (this.state === 'arrive') { this.state = 'traffic'; this.g.position.x = -130; } else if (this.state === 'stopped') { this.state = 'depart'; this.open = false; } }
   };
@@ -92,7 +105,7 @@ export function createNPCs(scene, sfx) {
     if (Math.abs(dz) > FIELD.d / 2) { bs.vz *= -.6; p.z = FIELD.z + Math.sign(dz) * FIELD.d / 2; }
   });
   for (let i = 0; i < 6; i++) {
-    const tm = i % 2, g = humanoid(tm ? 0xd9534f : 0x3b82f6, 0x222222), home = { x: FIELD.x + rnd(-12, 12), z: FIELD.z + rnd(-8, 8) };
+    const tm = i % 2, g = soldier(tm ? 1 : 0), home = { x: FIELD.x + rnd(-12, 12), z: FIELD.z + rnd(-8, 8) };
     g.position.set(home.x, 0, home.z); add(g, null, null); let cd = 0, ph = 0;
     movers.push((dt, t, P) => {
       cd -= dt; const bx = ball.position.x, bz = ball.position.z, dB = Math.hypot(bx - g.position.x, bz - g.position.z);
@@ -107,23 +120,23 @@ export function createNPCs(scene, sfx) {
   }
 
   // 5) Duduk di warung (2 orang di bangku)
-  [[8.2, Math.PI / 2, 'Pak Haji'], [11.8, -Math.PI / 2, 'Mas Dodi']].forEach(([x, ry, n]) => {
-    const g = humanoid(rc(), 0x334455); g.position.set(x, -.3, 8.6); g.rotation.y = ry; g.legL.rotation.x = g.legR.rotation.x = -1.4;
-    const e = add(g, n, ['Lagi ngopi sambil santai di sini.', 'Gorengan Bu Warung paling enak sekampung!']);
+  [[8.2, Math.PI / 2, 'Mayor Haji'], [11.8, -Math.PI / 2, 'Praka Dodi']].forEach(([x, ry, n], i) => {
+    const g = soldier(i); g.position.set(x, -.3, 8.6); g.rotation.y = ry; g.legL.rotation.x = g.legR.rotation.x = -1.4;
+    const e = add(g, n, ['Istirahat dulu sambil ngopi, Prajurit.', 'Gorengan Sertu Warung paling mantap!']);
     movers.push((dt, t) => { g.armR.rotation.x = e.busy ? -1 : -.5 + Math.sin(t * 1.5 + x) * .2; });
   });
 
   // 6) Penjual warung (jualan, bisa diajak interaksi)
-  { const g = humanoid(0xe91e63, 0x333333); g.position.set(10, 0, 12.4); g.rotation.y = Math.PI;
-    const e = add(g, 'Bu Warung', ['Silakan, mau beli apa?', 'Ada gorengan, kopi, dan nasi bungkus.', 'Ini gorengannya, Rp2.000 ya!', 'Terima kasih, mampir lagi ya!']);
+  { const g = soldier(2); g.position.set(10, 0, 12.4); g.rotation.y = Math.PI;
+    const e = add(g, 'Sertu Warung', ['Siap! Mau pesan apa, Komandan?', 'Ada gorengan, kopi, dan nasi bungkus.', 'Ini pesanannya, Rp2.000. Siap!', 'Terima kasih, tetap waspada!']);
     movers.push((dt, t) => { g.armR.rotation.x = -.4 + Math.sin(t * 2) * .3; }); }
 
   // 7) Pedagang bakso keliling (jalan & bisa diajak interaksi)
-  { const g = humanoid(0xffffff, 0x2b2b2b), cart = new THREE.Group();
-    box(1.6, 1, .9, 0xc0392b, 0, .9, 1.3, cart); box(1.8, .1, 1.1, 0xf5f5f5, 0, 1.45, 1.3, cart);
-    const u = new THREE.Mesh(new THREE.ConeGeometry(1.2, .5, 8), M(0xf1c40f)); u.position.set(0, 2.6, 1.3); cart.add(u); box(.06, 1.2, .06, 0x555555, 0, 2, 1.3, cart);
+  { const g = soldier(0), cart = new THREE.Group();
+    box(1.6, 1, .9, 0x4b5d2a, 0, .9, 1.3, cart); box(1.8, .1, 1.1, 0xf5f5f5, 0, 1.45, 1.3, cart);
+    const u = new THREE.Mesh(new THREE.ConeGeometry(1.2, .5, 8), M(0x556b2f)); u.position.set(0, 2.6, 1.3); cart.add(u); box(.06, 1.2, .06, 0x555555, 0, 2, 1.3, cart);
     g.add(cart); g.position.set(-60, 0, -6.7);
-    const e = add(g, 'Mang Bakso', ['Bakso! Baksoooo! Hangat dan segar!', 'Semangkuk Rp10.000, mau?', 'Nih baksonya, hati-hati panas ya!', 'Terima kasih, selamat makan!']);
+    const e = add(g, 'Koki Lapangan', ['Dapur lapangan keliling! Bakso hangat!', 'Semangkuk Rp10.000, Prajurit?', 'Silakan, hati-hati panas.', 'Terima kasih, selamat makan!']);
     let ph = 0, bell = 0;
     movers.push((dt, t, P) => {
       if (e.busy) { walkAnim(g, 0, 0); return; }
@@ -133,8 +146,8 @@ export function createNPCs(scene, sfx) {
 
   // 8) Suster Klinik: memulihkan HP penuh + isi ulang medkit (lihat onTalk di main.js)
   const nurse = (() => {
-    const g = humanoid(0xffffff, 0xf5f5f5); g.position.set(-44, 0, -13); box(.25, .08, .02, 0xd32f2f, 0, 1.45, .21, g); box(.08, .25, .02, 0xd32f2f, 0, 1.45, .21, g);
-    return add(g, 'Suster Ani', ['Selamat datang di Klinik!', 'Sini, saya obati lukamu sampai sembuh.', 'Medkit juga sudah saya isi ulang. Jaga diri ya!']);
+    const g = soldier(0, true); g.position.set(-44, 0, -13);
+    return add(g, 'Medis Ani', ['Selamat datang di Pos Medis!', 'Sini, saya rawat lukamu sampai pulih.', 'Medkit sudah diisi ulang. Siap kembali bertugas!']);
   })();
 
   let hornCd = 0;

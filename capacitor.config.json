@@ -1,5 +1,6 @@
 {
-  "appId": "com.rezxgunz.desa3d",
-  "appName": "Desa 3D",
-  "webDir": "dist"
+  "appId": "com.rezxgunz.desaexplorer",
+  "appName": "Desa Explorer 3D",
+  "webDir": "dist",
+  "server": { "androidScheme": "http", "cleartext": true }
 }

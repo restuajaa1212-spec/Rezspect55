@@ -1,2 +1,2 @@
-// base './' wajib agar aset terbaca dari file:// / WebView Android
-export default { base: './', build: { outDir: 'dist', chunkSizeWarningLimit: 1500 } };
+import { defineConfig } from 'vite';
+export default defineConfig({ base: './', build: { outDir: 'dist', chunkSizeWarningLimit: 2000 } });

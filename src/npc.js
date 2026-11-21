@@ -1,55 +1,145 @@
-// Desa 3D - (c) 2026 rez x Gunz - MIT License
-// NPC berjalan di jalur tetap. Posisi = fungsi dari Date.now() sehingga semua pemain multiplayer
-// melihat NPC di tempat yang (hampir) sama tanpa perlu sinkronisasi jaringan.
+// NPC (jalan kaki, motor, mobil, bus, pemain bola, duduk di warung, penjual) + model manusia.
 import * as THREE from 'three';
-import { createAvatar, animate } from './avatar.js';
+import { M, box, tag, rnd } from './util.js';
+import { FIELD } from './world.js';
 
-const LOOPS = [
-  [[-70, -6.8], [22, -6.8], [22, -7.8], [-70, -7.8]],   // trotoar utara
-  [[-70, 4.8], [26, 4.8], [26, 6.3], [-70, 6.3]],       // trotoar selatan
-  [[-48, 19], [-12, 19], [-12, 43], [-48, 43]],         // keliling lapangan
-  [[-41, 25], [-19, 25], [-19, 37], [-41, 37]],         // pemain bola di lapangan
-];
-// [loop, kecepatan m/s, offset jarak, skin]
-const SPEC = [[0, 1.4, 0, 0], [0, 1.2, 60, 1], [0, 1.1, 150, 2], [1, 1.5, 20, 3], [1, 1.3, 120, 4], [1, 1.6, 80, 0],
-              [2, 1.3, 0, 1], [3, 3.2, 0, 4], [3, 3.4, 25, 4], [3, 3.0, 50, 5]];
+const rc = () => [0xd9534f, 0x5bc0de, 0xf0ad4e, 0x5cb85c, 0x9b59b6, 0xe67e22, 0xffffff][Math.floor(Math.random() * 7)];
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const TALK = ['Selamat pagi! Cuacanya cerah ya.', 'Kalau lapar, mampir ke warung.', 'Hati-hati, motor suka ngebut di sini.', 'Air sungai di selatan jernih banget.', 'Sore nanti ada main bola di lapangan.'];
 
-class Path {
-  constructor(pts) {
-    this.seg = []; let L = 0;
-    pts.forEach((a, i) => { const b = pts[(i + 1) % pts.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); this.seg.push({ a, b, l, at: L }); L += l; });
-    this.len = L;
-  }
-  at(d) {
-    d = ((d % this.len) + this.len) % this.len;
-    for (const s of this.seg) if (d <= s.at + s.l) { const u = (d - s.at) / s.l; return { x: s.a[0] + (s.b[0] - s.a[0]) * u, z: s.a[1] + (s.b[1] - s.a[1]) * u, dx: (s.b[0] - s.a[0]) / s.l, dz: (s.b[1] - s.a[1]) / s.l }; }
-  }
+// Model manusia blocky: kaki/tangan adalah pivot yang bisa diayun
+export function humanoid(shirt, pants, skin = 0xf1c27d) {
+  const g = new THREE.Group();
+  box(.7, .9, .4, shirt, 0, 1.25, 0, g);
+  const h = new THREE.Mesh(new THREE.SphereGeometry(.28, 10, 8), M(skin)); h.position.y = 1.9; g.add(h);
+  const limb = (w, hh, d, c, x, y) => { const p = new THREE.Group(); p.position.set(x, y, 0); box(w, hh, d, c, 0, -hh / 2, 0, p); g.add(p); return p; };
+  g.legL = limb(.28, .8, .3, pants, -.18, .8); g.legR = limb(.28, .8, .3, pants, .18, .8);
+  g.armL = limb(.2, .8, .25, shirt, -.48, 1.65); g.armR = limb(.2, .8, .25, shirt, .48, 1.65);
+  return g;
+}
+export function walkAnim(g, ph, amt = .7) {
+  const s = Math.sin(ph) * amt;
+  g.legL.rotation.x = s; g.legR.rotation.x = -s; g.armL.rotation.x = -s; g.armR.rotation.x = s;
+}
+const wheel = (p, x, y, z, r = .35) => { const w = new THREE.Mesh(new THREE.CylinderGeometry(r, r, .25, 10), M(0x111111)); w.rotation.x = Math.PI / 2; w.position.set(x, y, z); p.add(w); };
+// Kendaraan menghadap +X
+function motorModel() {
+  const g = new THREE.Group(); box(1.8, .4, .5, rc(), 0, .7, 0, g); wheel(g, .8, .35, 0); wheel(g, -.8, .35, 0);
+  const r = humanoid(rc(), 0x223344); r.scale.setScalar(.75); r.position.set(-.1, .3, 0); r.rotation.y = Math.PI / 2;
+  r.legL.rotation.x = r.legR.rotation.x = -1.2; g.add(r); return g;
+}
+function carModel() {
+  const g = new THREE.Group(), c = rc();
+  box(4.2, .9, 1.9, c, 0, .75, 0, g); box(2.2, .8, 1.7, 0x9fd3ff, -.2, 1.55, 0, g);
+  for (const x of [-1.4, 1.4]) for (const z of [-.95, .95]) wheel(g, x, .4, z, .4); return g;
+}
+function busModel() {
+  const g = new THREE.Group();
+  box(10, 2.6, 2.6, 0xe8b923, 0, 1.7, 0, g);
+  for (const z of [-1.31, 1.31]) box(8, .9, .05, 0x9fd3ff, -.6, 2.2, z, g);
+  for (const x of [-3, 3]) for (const z of [-1.2, 1.2]) wheel(g, x, .5, z, .5);
+  const door = new THREE.Group(); door.position.set(2.4, 0, 1.32); box(1.3, 2.1, .08, 0x2b6cb0, .65, 1.15, 0, door); g.add(door);
+  return { g, door };
 }
 
-export class NPCs {
-  constructor(scene, audio) {
-    this.audio = audio; const paths = LOOPS.map((l) => new Path(l));
-    this.list = SPEC.map(([li, speed, off, skin]) => {
-      const av = createAvatar(skin, '', false); scene.add(av);
-      const n = { av, path: paths[li], speed, off, x: 0, z: 0, down: 0 };
-      n.tryHit = (p) => {                                   // dipanggil peluru
-        if (n.down > 0 || p.y < 0 || p.y > 1.9 || (p.x - n.x) ** 2 + (p.z - n.z) ** 2 > 0.3) return false;
-        n.down = 4; this.audio.hit(); return true;
-      };
-      return n;
+export function createNPCs(scene, sfx) {
+  const inter = [], movers = [], vehicles = [];
+  const add = (g, name, lines) => {
+    scene.add(g); if (name) { const t = tag(name); t.position.y = 2.5; g.add(t); }
+    const e = { g, name, lines, i: 0, busy: false }; if (lines) inter.push(e); return e;
+  };
+
+  // 1) NPC jalan kaki di trotoar
+  ['Pak Budi', 'Bu Sari', 'Andi', 'Siti', 'Joko', 'Dewi', 'Rudi', 'Wati'].forEach((n, i) => {
+    const g = humanoid(rc(), rc()), e = add(g, n, [pick(TALK), pick(TALK)]);
+    let dir = i % 2 ? 1 : -1, ph = rnd(0, 6); const sp = rnd(1.2, 1.8);
+    g.position.set(rnd(-90, 90), 0, i % 4 < 2 ? 6.7 : -6.7);
+    movers.push(dt => {
+      if (e.busy) { walkAnim(g, 0, 0); return; }
+      g.position.x += dir * sp * dt; if (g.position.x > 105) dir = -1; if (g.position.x < -105) dir = 1;
+      ph += dt * sp * 4; g.rotation.y = dir > 0 ? Math.PI / 2 : -Math.PI / 2; walkAnim(g, ph, .6);
+    });
+  });
+
+  // 2) Motor & mobil lewat (dua lajur)
+  const mkVeh = (g, dir, sp) => { g.position.set(rnd(-120, 120), 0, dir > 0 ? 2.5 : -2.5); g.rotation.y = dir > 0 ? 0 : Math.PI; scene.add(g); vehicles.push({ g, dir, sp }); };
+  for (let i = 0; i < 4; i++) mkVeh(motorModel(), i % 2 ? 1 : -1, rnd(8, 11));
+  for (let i = 0; i < 3; i++) mkVeh(carModel(), i % 2 ? -1 : 1, rnd(6, 8));
+
+  // 3) Bus intro (state: wait -> arrive -> stopped -> depart -> traffic)
+  const bm = busModel(); bm.g.position.set(-110, 0, 2.5); bm.g.visible = false; scene.add(bm.g);
+  const bus = {
+    g: bm.g, state: 'wait', t: 0, open: false, door: 0, vel: 0,
+    start() { this.state = 'arrive'; this.t = 0; this.g.visible = true; this.g.position.x = -110; },
+    depart() { if (this.state === 'arrive') { this.state = 'traffic'; this.g.position.x = -130; } else if (this.state === 'stopped') { this.state = 'depart'; this.open = false; } }
+  };
+  function updBus(dt) {
+    const b = bus, p = b.g.position;
+    b.door += ((b.open ? 1 : 0) - b.door) * Math.min(1, dt * 3); bm.door.rotation.y = -b.door * 1.6;
+    if (b.state === 'arrive') { b.t += dt; const u = Math.min(b.t / 6, 1); p.x = -110 + 87 * (1 - (1 - u) * (1 - u)); if (u >= 1) { b.state = 'stopped'; sfx.brake(); } }
+    else if (b.state === 'depart') { if (b.door < .05) { b.vel = Math.min(9, b.vel + dt * 3); p.x += b.vel * dt; if (p.x > 130) { b.state = 'traffic'; p.x = -130; } } }
+    else if (b.state === 'traffic') { p.x += 8 * dt; if (p.x > 130) p.x = -130; }
+  }
+
+  // 4) Pemain bola di lapangan berlumpur
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(.3, 10, 8), M(0xffffff)); ball.position.set(FIELD.x, .3, FIELD.z); scene.add(ball);
+  const bs = { vx: 0, vz: 0, vy: 0 };
+  movers.push(dt => {
+    const p = ball.position; p.x += bs.vx * dt; p.z += bs.vz * dt; bs.vx *= .985; bs.vz *= .985; bs.vy -= 15 * dt;
+    p.y += bs.vy * dt; if (p.y < .3) { p.y = .3; bs.vy = Math.abs(bs.vy) * .4; }
+    const dx = p.x - FIELD.x, dz = p.z - FIELD.z;
+    if (Math.abs(dx) > FIELD.w / 2) { bs.vx *= -.6; p.x = FIELD.x + Math.sign(dx) * FIELD.w / 2; }
+    if (Math.abs(dz) > FIELD.d / 2) { bs.vz *= -.6; p.z = FIELD.z + Math.sign(dz) * FIELD.d / 2; }
+  });
+  for (let i = 0; i < 6; i++) {
+    const tm = i % 2, g = humanoid(tm ? 0xd9534f : 0x3b82f6, 0x222222), home = { x: FIELD.x + rnd(-12, 12), z: FIELD.z + rnd(-8, 8) };
+    g.position.set(home.x, 0, home.z); add(g, null, null); let cd = 0, ph = 0;
+    movers.push((dt, t, P) => {
+      cd -= dt; const bx = ball.position.x, bz = ball.position.z, dB = Math.hypot(bx - g.position.x, bz - g.position.z);
+      const tx = dB < 10 ? bx : home.x, tz = dB < 10 ? bz : home.z, dx = tx - g.position.x, dz = tz - g.position.z, d = Math.hypot(dx, dz);
+      if (d > .5) { g.position.x += dx / d * 3.6 * dt; g.position.z += dz / d * 3.6 * dt; g.rotation.y = Math.atan2(dx, dz); ph += dt * 14; walkAnim(g, ph, .9); } else walkAnim(g, 0, 0);
+      if (dB < 1 && cd <= 0) {
+        const gx = FIELD.x + (tm ? -1 : 1) * FIELD.w / 2, ang = Math.atan2(FIELD.z + rnd(-3, 3) - bz, gx - bx), sp = rnd(7, 11);
+        bs.vx = Math.cos(ang) * sp; bs.vz = Math.sin(ang) * sp; bs.vy = rnd(1.5, 3.5); cd = .8;
+        if (Math.hypot(P.x - bx, P.z - bz) < 40) sfx.kick();
+      }
     });
   }
-  update(dt) {
-    const t = Date.now() / 1000;
-    for (const n of this.list) {
-      if (n.down > 0) {                                     // tumbang sementara setelah tertembak
-        n.down -= dt; n.av.rotation.x += (-Math.PI / 2 - n.av.rotation.x) * Math.min(1, dt * 12); n.av.position.y = 0.2;
-        if (n.down <= 0) { n.av.rotation.x = 0; n.av.position.y = 0; }
-        continue;
-      }
-      const p = n.path.at(n.off + n.speed * t); n.x = p.x; n.z = p.z;
-      n.av.position.set(p.x, 0, p.z); n.av.rotation.y = Math.atan2(p.dx, p.dz);
-      animate(n.av, t * n.speed * 3 + n.off, Math.min(1, n.speed / 1.5), false);
-    }
+
+  // 5) Duduk di warung (2 orang di bangku)
+  [[8.2, Math.PI / 2, 'Pak Haji'], [11.8, -Math.PI / 2, 'Mas Dodi']].forEach(([x, ry, n]) => {
+    const g = humanoid(rc(), 0x334455); g.position.set(x, -.3, 8.6); g.rotation.y = ry; g.legL.rotation.x = g.legR.rotation.x = -1.4;
+    const e = add(g, n, ['Lagi ngopi sambil santai di sini.', 'Gorengan Bu Warung paling enak sekampung!']);
+    movers.push((dt, t) => { g.armR.rotation.x = e.busy ? -1 : -.5 + Math.sin(t * 1.5 + x) * .2; });
+  });
+
+  // 6) Penjual warung (jualan, bisa diajak interaksi)
+  { const g = humanoid(0xe91e63, 0x333333); g.position.set(10, 0, 12.4); g.rotation.y = Math.PI;
+    const e = add(g, 'Bu Warung', ['Silakan, mau beli apa?', 'Ada gorengan, kopi, dan nasi bungkus.', 'Ini gorengannya, Rp2.000 ya!', 'Terima kasih, mampir lagi ya!']);
+    movers.push((dt, t) => { g.armR.rotation.x = -.4 + Math.sin(t * 2) * .3; }); }
+
+  // 7) Pedagang bakso keliling (jalan & bisa diajak interaksi)
+  { const g = humanoid(0xffffff, 0x2b2b2b), cart = new THREE.Group();
+    box(1.6, 1, .9, 0xc0392b, 0, .9, 1.3, cart); box(1.8, .1, 1.1, 0xf5f5f5, 0, 1.45, 1.3, cart);
+    const u = new THREE.Mesh(new THREE.ConeGeometry(1.2, .5, 8), M(0xf1c40f)); u.position.set(0, 2.6, 1.3); cart.add(u); box(.06, 1.2, .06, 0x555555, 0, 2, 1.3, cart);
+    g.add(cart); g.position.set(-60, 0, -6.7);
+    const e = add(g, 'Mang Bakso', ['Bakso! Baksoooo! Hangat dan segar!', 'Semangkuk Rp10.000, mau?', 'Nih baksonya, hati-hati panas ya!', 'Terima kasih, selamat makan!']);
+    let ph = 0, bell = 0;
+    movers.push((dt, t, P) => {
+      if (e.busy) { walkAnim(g, 0, 0); return; }
+      g.position.x += dt * 1.1; if (g.position.x > 105) g.position.x = -105; g.rotation.y = Math.PI / 2; ph += dt * 4.5; walkAnim(g, ph, .5);
+      bell -= dt; if (bell <= 0) { bell = 6; if (Math.hypot(P.x - g.position.x, P.z - g.position.z) < 30) sfx.bell(); }
+    }); }
+
+  let hornCd = 0;
+  function update(dt, t, P) {
+    movers.forEach(f => f(dt, t, P));
+    for (const v of vehicles) { const p = v.g.position; p.x += v.dir * v.sp * dt; if (p.x > 130) p.x = -130; if (p.x < -130) p.x = 130; }
+    updBus(dt);
+    let near = 999;
+    for (const o of [...vehicles.map(v => v.g), bus.g]) if (o.visible) near = Math.min(near, Math.hypot(o.position.x - P.x, o.position.z - P.z));
+    hornCd -= dt; if (near < 8 && hornCd <= 0 && bus.state !== 'arrive') { sfx.horn(); hornCd = 6; }
+    return near; // jarak kendaraan terdekat (untuk volume mesin)
   }
+  return { update, inter, bus };
 }

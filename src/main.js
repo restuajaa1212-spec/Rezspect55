@@ -1,132 +1,173 @@
-// Desa 3D - (c) 2026 rez x Gunz - MIT License
-// Alur: layar masuk -> LOBI (skin, musik, room) -> intro bus -> permainan (NPC, pistol, multiplayer).
-import * as THREE from 'three';
+// Titik masuk: renderer, state (lobby -> intro -> play), pemain, kamera, HUD, multiplayer.
 import './style.css';
-import { buildWorld, RIVER_X } from './world.js';
-import { Player } from './player.js';
-import { UI } from './ui.js';
-import { GameAudio } from './audio.js';
-import { createIntro } from './intro.js';
-import { Weapon } from './weapon.js';
-import { Combat } from './combat.js';
-import { NPCs } from './npc.js';
+import * as THREE from 'three';
+import { buildWorld, colliders, inWater, RIVER_Z } from './world.js';
+import { createNPCs, humanoid, walkAnim } from './npc.js';
+import { tag } from './util.js';
+import { Sfx } from './audio.js';
+import { Input } from './controls.js';
 import { Net } from './net.js';
-import { Lobby } from './lobby.js';
-import { createAvatar, animate } from './avatar.js';
 
-const canvas = document.getElementById('game');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerpA = (a, b, t) => a + ((((b - a + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) - Math.PI) * t;
+
+// ---------- Renderer & scene ----------
+const canvas = $('game');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 400);
-scene.add(camera);                                          // wajib: model pistol adalah anak kamera
-
-const audio = new GameAudio(), net = new Net(), ui = new UI(canvas);
-const world = buildWorld(scene), player = new Player(camera, world, audio);
-const weapon = new Weapon(camera, audio), combat = new Combat(scene, world), npcs = new NPCs(scene, audio);
-const lobby = new Lobby(audio, net, beginGame);
-weapon.model.visible = false;
-
-const resize = () => {
-  renderer.setSize(innerWidth, innerHeight, false);
-  for (const c of [camera, lobby.camera]) { c.aspect = innerWidth / innerHeight; c.updateProjectionMatrix(); }
-};
+const camera = new THREE.PerspectiveCamera(65, 1, .1, 400);
+const resize = () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); };
 addEventListener('resize', resize); resize();
 
-let mode = 'start', intro = null, myId = 0, gameMinutes = 7 * 60, elapsed = 0, sendT = 0;
-const remotes = new Map();                                  // id -> {av, tx,ty,tz, yaw, c, a}
-const fade = document.getElementById('fade'), skipBtn = document.getElementById('skip');
-const spawnX = (id) => -12 + (id - 1.5) * 1.2;
+const sfx = new Sfx(), world = buildWorld(scene), npcs = createNPCs(scene, sfx), input = new Input(canvas);
 
-/** Fullscreen + kunci landscape (WebView Android memakai manifest, ini cadangan untuk browser). */
-async function lockLandscape() {
-  try { await document.documentElement.requestFullscreen?.(); } catch (e) {}
-  try { await screen.orientation?.lock?.('landscape'); } catch (e) {}
-}
+// ---------- Pemain ----------
+const me = humanoid(0x2d7ff9, 0x333a4a); me.visible = false; scene.add(me);
+const P = { x: -20, y: 0, z: 5.3, vy: 0, yaw: 0, pitch: .35, ph: 0, moving: false, cs: 1, wasWater: false };
+let state = 'lobby', introT = 0, stopT = 0, spawned = false, idx = 0;
 
-// Layar masuk -> lobi (tap pengguna dibutuhkan untuk membuka audio)
-document.getElementById('startBtn').addEventListener('click', () => {
-  audio.init(); lockLandscape(); audio.musicStart('lobby');
-  document.getElementById('start').remove(); lobby.show(); mode = 'lobby';
-});
-
-/** Dipanggil lobi saat game dimulai (solo / host menekan MULAI / tamu menerima 'start') */
-function beginGame(roster) {
-  if (mode !== 'lobby') return;
-  myId = net.active ? net.id : 0;
-  lobby.hide(); audio.musicStart('game');
-  for (const r of remotes.values()) scene.remove(r.av); remotes.clear();
-  for (const p of roster) if (p.id !== myId) {
-    const av = createAvatar(p.skin, p.name); av.position.set(spawnX(p.id), 0, -3); scene.add(av);
-    remotes.set(p.id, { av, tx: spawnX(p.id), ty: 0, tz: -3, yaw: Math.PI, c: false, a: true, phase: 0 });
-  }
-  player.respawn(myId); weapon.refill(); ui.setHP(100);
-  mode = 'intro'; skipBtn.hidden = false;
-  intro = createIntro(scene, camera, audio, () => {
-    fade.style.opacity = 1;
-    setTimeout(() => { mode = 'play'; skipBtn.hidden = true; ui.showHUD(true); weapon.model.visible = true; fade.style.opacity = 0; }, 900);
-  });
-}
-skipBtn.addEventListener('click', () => intro?.skip());
-
-// ---- Event jaringan ----
-net.on('s', (m) => { const r = remotes.get(m.id); if (r) Object.assign(r, { tx: m.x, ty: m.y, tz: m.z, yaw: m.yaw, c: m.c, a: m.a }); });
-net.on('f', (m) => {
-  const o = new THREE.Vector3(...m.o), d = new THREE.Vector3(...m.d);
-  combat.spawn(o, d, m.id); audio.shot(Math.max(0.15, 1 - o.distanceTo(player.pos) / 60));
-});
-net.on('left', (m) => { const r = remotes.get(m.id); if (r) { scene.remove(r.av); remotes.delete(m.id); ui.toast('Pemain keluar'); } });
-net.on('closed', () => { if (mode === 'play' || mode === 'intro') { ui.toast('Host terputus…', 2500); setTimeout(() => location.reload(), 2600); } });
-
-// ---- Tembak & terkena tembakan ----
-function shoot() {
-  const d = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-  d.x += (Math.random() - 0.5) * 0.012; d.y += (Math.random() - 0.5) * 0.012; d.normalize();
-  const o = camera.position.clone().addScaledVector(d, 0.6);
-  combat.spawn(o, d, myId);
-  if (net.active) net.send({ t: 'f', id: myId, o: [o.x, o.y, o.z], d: [d.x, d.y, d.z] });
-}
-function damageMe(n) {                                      // korban menghitung sendiri damage-nya
-  if (!player.alive) return;
-  player.hp -= n; audio.hit(); ui.setHP(player.hp); ui.flash();
-  if (player.hp <= 0) {
-    player.alive = false; ui.toast('KO! Respawn 3 detik…', 3000);
-    setTimeout(() => { player.respawn(myId); weapon.refill(); ui.setHP(100); }, 3000);
+function collide(r = .5) {
+  for (const c of colliders) {
+    const nx = clamp(P.x, c.x - c.hx, c.x + c.hx), nz = clamp(P.z, c.z - c.hz, c.z + c.hz), dx = P.x - nx, dz = P.z - nz, d2 = dx * dx + dz * dz;
+    if (d2 < r * r) { if (d2 > 1e-6) { const d = Math.sqrt(d2); P.x = nx + dx / d * r; P.z = nz + dz / d * r; } else P.x += r; }
   }
 }
-const me = { get id() { return myId; }, pos: player.pos, get eye() { return player.eye; }, alive: () => player.alive, hit: () => damageMe(20) };
 
-// ---- Loop utama ----
-const clock = new THREE.Clock();
-renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.05); elapsed += dt;
-  if (mode === 'start' || mode === 'lobby') { lobby.update(dt); renderer.render(lobby.scene, lobby.camera); return; }
+// ---------- HUD: jam digital ----------
+let gm = 7 * 60;
+function tickClock(dt) { // 1 detik nyata = 1 menit game
+  gm = (gm + dt) % 1440;
+  $('clock').textContent = String(Math.floor(gm / 60)).padStart(2, '0') + ':' + String(Math.floor(gm % 60)).padStart(2, '0');
+}
+let toastT; function toast(s) { const t = $('toast'); t.textContent = s; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); }
 
-  world.update(dt, elapsed); npcs.update(dt);
-  if (intro && !intro.update(dt)) intro = null;
+// ---------- Dialog NPC ----------
+let current = null;
+function closeDialog() { if (current) { current.busy = false; current.i = 0; } current = null; $('dialog').classList.add('hide'); }
+function talk(e) {
+  if (current === e && e.i >= e.lines.length) { closeDialog(); return; }
+  if (current && current !== e) current.busy = false;
+  current = e; e.busy = true; e.g.rotation.y = Math.atan2(P.x - e.g.position.x, P.z - e.g.position.z);
+  $('dn').textContent = e.name; $('dt').textContent = e.lines[e.i++]; $('dialog').classList.remove('hide'); sfx.talk();
+}
 
-  for (const r of remotes.values()) {                       // interpolasi pemain lain
-    const k = Math.min(1, dt * 12), p = r.av.position, mx = (r.tx - p.x) * k, mz = (r.tz - p.z) * k;
-    p.x += mx; p.z += mz; p.y += (r.ty - p.y) * k;
-    const sp = Math.hypot(mx, mz) / Math.max(dt, 1e-4); r.phase += sp * dt * 2.2;
-    animate(r.av, r.phase, Math.min(1, sp / 3), r.c); r.av.rotation.y = r.yaw + Math.PI; r.av.visible = r.a;
+// ---------- Pemain jarak jauh (multiplayer) ----------
+const remotes = new Map();
+function remote(id, name) {
+  let r = remotes.get(id);
+  if (!r) { const g = humanoid(0xffc107, 0x444444), t = tag(name || 'Pemain'); t.position.y = 2.5; g.add(t); scene.add(g); r = { g, x: 0, y: 0, z: 0, r: 0, a: 0, ph: 0 }; remotes.set(id, r); }
+  return r;
+}
+function updateRemotes(dt) {
+  for (const r of remotes.values()) {
+    r.g.position.x += (r.x - r.g.position.x) * .2; r.g.position.y += (r.y - r.g.position.y) * .2; r.g.position.z += (r.z - r.g.position.z) * .2;
+    r.g.rotation.y = lerpA(r.g.rotation.y, r.r, .2); if (r.a) { r.ph += dt * 9; walkAnim(r.g, r.ph, .7); } else walkAnim(r.g, 0, 0);
   }
+}
 
-  if (mode === 'play') {
-    player.update(dt, ui); weapon.update(dt);
-    if (player.alive) {
-      if (ui.consumeReload()) weapon.reload();
-      if (ui.isFiring() && weapon.tryFire()) shoot();
-    }
-    ui.setAmmo(weapon.reloading ? 'ISI ULANG…' : `${weapon.mag}/${weapon.max}`);
-    gameMinutes += dt * 2; ui.setClock(gameMinutes);
-    audio.setRiver(Math.max(0, 1 - Math.abs(player.pos.x - RIVER_X) / 40));
-    sendT += dt;
-    if (net.active && sendT > 0.066) {                      // ±15 pembaruan posisi/detik
-      sendT = 0; const f = (v) => +v.toFixed(2);
-      net.send({ t: 's', id: myId, x: f(player.pos.x), y: f(player.pos.y), z: f(player.pos.z), yaw: f(player.yaw), c: ui.isCrouching(), a: player.alive });
-    }
+// ---------- Alur game ----------
+function startGame() {
+  sfx.init(); state = 'intro'; introT = 0; stopT = 0; spawned = false;
+  idx = Math.max(0, roster.findIndex(p => p.id === myId));
+  $('lobby').classList.add('hide'); $('skip').classList.remove('hide'); $('clock').classList.remove('hide');
+  roster.forEach(p => { if (p.id !== myId) remote(p.id, p.name); });
+  npcs.bus.start();
+}
+function spawnPlayer() { spawned = true; me.visible = true; P.x = -20 + idx * 1.4; P.z = 5.4; P.yaw = 0; me.rotation.y = 0; sfx.step(false); }
+function endIntro() { state = 'play'; $('skip').classList.add('hide'); $('hud').classList.remove('hide'); npcs.bus.depart(); }
+$('skip').onclick = () => { if (!spawned) spawnPlayer(); endIntro(); };
+
+function updateIntro(dt) {
+  introT += dt; const b = npcs.bus, bx = b.g.position.x, k = Math.min(introT / 9, 1);
+  camera.position.set(bx + 9 - k * 5, 2.4 + k * .6, 11); camera.lookAt(bx + 1, 1.6, 2.5);   // kamera sinematik mengikuti bus
+  if (b.state === 'stopped') {
+    stopT += dt;
+    if (!b.open && stopT > 1) { b.open = true; sfx.door(); }
+    if (stopT > 2.6 && !spawned) spawnPlayer();
+    if (stopT > 4) endIntro();
   }
-  combat.update(dt, { npcs: npcs.list, me });
-  renderer.render(scene, camera);
-});
+}
+function updatePlay(dt) {
+  // Kamera: geser layar
+  P.yaw -= input.drag.x * .005; P.pitch = clamp(P.pitch + input.drag.y * .005, -.1, 1.1); input.drag.x = input.drag.y = 0;
+  const mv = input.move(), len = Math.hypot(mv.x, mv.y), sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
+  const crouch = input.crouch, run = input.running && !crouch, water = inWater(P.x, P.z);
+  let speed = crouch ? 1.8 : run ? 7 : 3.8; if (water) speed *= .5;
+  P.moving = len > .1;
+  let vx = 0, vz = 0;
+  if (P.moving) {
+    const n = Math.min(1, len) / len, f = mv.y * n, r = mv.x * n;
+    vx = -sy * f + cy * r; vz = -cy * f - sy * r;
+    P.x += vx * speed * dt; P.z += vz * speed * dt; me.rotation.y = lerpA(me.rotation.y, Math.atan2(vx, vz), .25);
+  }
+  if (input.jump() && P.y === 0) { P.vy = 6.5; sfx.jump(); }
+  P.vy -= 18 * dt; P.y += P.vy * dt; if (P.y <= 0) { P.y = 0; P.vy = 0; }
+  collide(); P.x = clamp(P.x, -125, 125); P.z = clamp(P.z, -125, 110);
+  if (water && !P.wasWater) sfx.splash(); P.wasWater = water;
+  // Animasi & langkah kaki
+  if (P.moving && P.y === 0) {
+    const old = Math.floor(P.ph / Math.PI); P.ph += dt * speed * 2.2; walkAnim(me, P.ph, run ? .95 : .65);
+    if (Math.floor(P.ph / Math.PI) !== old) water ? sfx.splash() : sfx.step(run);
+  } else if (P.y > 0) { me.legL.rotation.x = -.5; me.legR.rotation.x = .5; } else walkAnim(me, 0, 0);
+  P.cs += ((crouch ? .7 : 1) - P.cs) * Math.min(1, dt * 10); me.scale.y = P.cs; me.position.set(P.x, P.y, P.z);
+  // Kamera orbit
+  const d = 6, th = P.pitch, ty = P.y + 1.6 * P.cs;
+  camera.position.set(P.x + Math.sin(P.yaw) * Math.cos(th) * d, Math.max(.4, ty + Math.sin(th) * d), P.z + Math.cos(P.yaw) * Math.cos(th) * d);
+  camera.lookAt(P.x, ty, P.z);
+  // Interaksi NPC
+  let near = null, nd = 3.2;
+  for (const e of npcs.inter) { const dd = Math.hypot(e.g.position.x - P.x, e.g.position.z - P.z); if (dd < nd) { nd = dd; near = e; } }
+  $('bAct').classList.toggle('on', !!near);
+  const act = input.act(); if (act && near) talk(near);
+  if (current && current !== near) closeDialog();
+}
+
+// ---------- Lobby & multiplayer ----------
+let net = null, myId = 1, hostId = 1, roster = [{ id: 1, name: 'Kamu' }];
+const status = s => $('status').textContent = s || '';
+$('name').value = localStorage.getItem('dx_name') || ''; $('server').value = localStorage.getItem('dx_srv') || 'ws://192.168.1.2:8080';
+
+$('bSolo').onclick = () => { sfx.init(); roster = [{ id: 1, name: $('name').value || 'Kamu' }]; myId = 1; startGame(); };
+async function joinRoom(code) {
+  sfx.init(); const name = $('name').value.trim() || 'Pemain';
+  localStorage.setItem('dx_name', name); localStorage.setItem('dx_srv', $('server').value);
+  if (!code) return status('Isi kode room dulu');
+  status('Menghubungkan…'); net = new Net(onNet);
+  try { await net.connect($('server').value.trim(), name, code.toUpperCase()); status(''); } catch (e) { status(e.message); net = null; }
+}
+$('bCreate').onclick = () => { const c = Math.random().toString(36).slice(2, 6).toUpperCase(); $('room').value = c; joinRoom(c); };
+$('bJoin').onclick = () => joinRoom($('room').value.trim());
+$('bStart').onclick = () => net && net.send({ t: 'start' });
+
+function onNet(m) {
+  if (m.t === 'you') myId = m.id;
+  else if (m.t === 'room') {
+    roster = m.players; hostId = m.host; $('menu').classList.add('hide'); $('roomPanel').classList.remove('hide'); $('rc').textContent = m.code;
+    $('plist').innerHTML = roster.map(p => `<li>${p.id === hostId ? '👑 ' : '👤 '}${p.name.replace(/[<>&]/g, '')}${p.id === myId ? ' (kamu)' : ''}</li>`).join('');
+    $('bStart').classList.toggle('hide', myId !== hostId); $('wait').classList.toggle('hide', myId === hostId);
+  } else if (m.t === 'start') startGame();
+  else if (m.t === 'st') { const r = remote(m.id, (roster.find(p => p.id === m.id) || {}).name); Object.assign(r, { x: m.x, y: m.y, z: m.z, r: m.r, a: m.a }); }
+  else if (m.t === 'left') { const r = remotes.get(m.id); if (r) { scene.remove(r.g); remotes.delete(m.id); toast('Pemain keluar'); } }
+  else if (m.t === 'err') { status(m.msg); net = null; }
+  else if (m.t === 'closed' && state !== 'lobby') toast('Koneksi server terputus');
+  else if (m.t === 'closed') status('Koneksi terputus');
+}
+setInterval(() => { if (net && state === 'play') net.send({ t: 'st', x: +P.x.toFixed(2), y: +P.y.toFixed(2), z: +P.z.toFixed(2), r: +me.rotation.y.toFixed(2), a: P.moving ? 1 : 0 }); }, 80);
+
+// ---------- Loop utama ----------
+const clk = new THREE.Clock();
+function loop() {
+  requestAnimationFrame(loop);
+  const dt = Math.min(clk.getDelta(), .05), t = clk.elapsedTime;
+  world.update(dt);
+  const near = npcs.update(dt, t, state === 'lobby' ? { x: 0, z: 0 } : P);
+  if (state === 'lobby') { camera.position.set(Math.cos(t * .05) * 90, 35, Math.sin(t * .05) * 90); camera.lookAt(0, 2, 0); }
+  else if (state === 'intro') updateIntro(dt); else updatePlay(dt);
+  if (state !== 'lobby') {
+    sfx.setEngine(clamp(1 - near / 35, 0, 1)); sfx.setRiver(clamp(1 - Math.abs(P.z - RIVER_Z) / 50, 0, 1)); tickClock(dt);
+  }
+  updateRemotes(dt); renderer.render(scene, camera);
+}
+loop();

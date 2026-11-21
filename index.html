@@ -8,19 +8,49 @@
 </head>
 <body>
   <canvas id="game"></canvas>
+  <div id="hurt"></div>
   <div id="clock">07:00</div>
+  <div id="hpbar"><i id="hp"></i></div>
+  <div id="ammo">12/12</div>
+  <div id="cross"></div>
+  <div id="msg"></div>
+  <button id="btn-music">♪</button>
   <div id="joy"><div id="knob"></div></div>
   <div id="btns">
     <button id="btn-jump">LONCAT</button>
     <button id="btn-crouch">JONGKOK</button>
     <button id="btn-run">LARI</button>
+    <button id="btn-reload">ISI ULANG</button>
   </div>
+  <button id="btn-fire">TEMBAK</button>
   <button id="skip" hidden>Lewati ›</button>
   <div id="fade"></div>
+
+  <div id="lobby" hidden>
+    <div class="panel">
+      <h2>LOBI</h2>
+      <input id="name" maxlength="12" placeholder="Nama pemain" />
+      <div class="row"><button id="skinPrev">◀</button><b>Skin: <span id="skinName"></span></b><button id="skinNext">▶</button></div>
+      <button id="musicBtn">Musik: ON</button>
+      <div id="menuMain">
+        <button id="solo" class="big">Main Solo</button>
+        <button id="create">Buat Room (Mabar)</button>
+        <div class="row"><input id="code" maxlength="4" placeholder="KODE" /><button id="join">Gabung</button></div>
+      </div>
+      <div id="room" hidden>
+        <div>Kode room: <b id="roomCode" class="code"></b> (<span id="count">1</span>/4)</div>
+        <ul id="players"></ul>
+        <button id="startGame" class="big">MULAI</button>
+        <button id="leave">Keluar Room</button>
+      </div>
+      <small id="lobbyMsg"></small>
+    </div>
+  </div>
+
   <div id="start">
     <h1>DESA 3D</h1>
-    <p>Jelajahi desa. Geser layar kanan untuk melihat sekitar.</p>
-    <button id="startBtn">MULAI</button>
+    <p>Jelajahi desa bersama temanmu.</p>
+    <button id="startBtn">MASUK</button>
     <small>© 2026 rez x Gunz</small>
   </div>
   <div id="rotate">Putar HP ke mode landscape ↻</div>

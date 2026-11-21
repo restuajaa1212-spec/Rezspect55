@@ -25,3 +25,11 @@ Kontrol keyboard: WASD, Spasi (loncat), Shift (lari), C (jongkok).
 ## Catatan
 - Jangan commit folder `android/` — dibuat otomatis oleh workflow.
 - APK debug sudah dapat dipasang langsung (tanpa tanda tangan rilis).
+
+## Fitur
+- **Lobi** (pratinjau 3D): ganti nama & skin (6 pilihan), musik ON/OFF, Main Solo / Buat Room / Gabung Room.
+- **Mabar hingga 4 orang** (WebRTC via PeerJS): host membuat room → dapat kode 4 karakter → teman memasukkan kode → host menekan MULAI.
+  Perlu internet. Jika 2 pemain di jaringan seluler ketat (CGNAT) gagal terhubung, coba pakai Wi-Fi yang sama / hotspot.
+- **Pistol**: tombol TEMBAK (tahan), ISI ULANG (12 peluru), HP 100, tertembak -20, respawn di halte setelah 3 detik.
+- **NPC** berjalan di trotoar & lapangan; bisa ditembak (tumbang 4 detik).
+- Keyboard (uji di PC): WASD, Spasi, Shift, C, F (tembak), R (isi ulang).

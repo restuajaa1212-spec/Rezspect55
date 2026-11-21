@@ -4,11 +4,15 @@
   "private": true,
   "license": "MIT",
   "author": "rez x Gunz",
-  "scripts": { "dev": "vite", "build": "vite build" },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
   "dependencies": {
     "@capacitor/android": "^6.1.2",
     "@capacitor/core": "^6.1.2",
-    "three": "^0.160.0"
+    "three": "^0.160.0",
+    "peerjs": "^1.5.4"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.2",

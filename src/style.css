@@ -8,8 +8,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:syste
 #joy{position:fixed;left:6vmin;bottom:8vmin;width:30vmin;height:30vmin;max-width:150px;max-height:150px;border-radius:50%;
   background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.4);z-index:5;display:none}
 #knob{position:absolute;left:50%;top:50%;width:45%;height:45%;margin:-22.5% 0 0 -22.5%;border-radius:50%;background:rgba(255,255,255,.6)}
-#btns{position:fixed;right:5vmin;bottom:6vmin;display:none;flex-direction:column;gap:10px;z-index:5}
-#btns button{width:92px;height:52px;border:2px solid rgba(255,255,255,.5);border-radius:14px;color:#fff;
+#btns{position:fixed;right:calc(5vmin + 104px);bottom:5vmin;display:none;flex-direction:column;gap:10px;z-index:5}
+#btns button{width:88px;height:44px;border:2px solid rgba(255,255,255,.5);border-radius:14px;color:#fff;
   background:rgba(0,0,0,.45);font-weight:700;font-size:13px}
 #btns button.on,#btns button:active{background:rgba(60,200,110,.75)}
 #skip{position:fixed;right:14px;top:14px;z-index:9;padding:8px 14px;border-radius:8px;border:0;background:rgba(0,0,0,.5);color:#fff}
@@ -22,3 +22,25 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:syste
 #rotate{display:none;position:fixed;inset:0;z-index:99;background:#111;color:#fff;font:700 20px system-ui;
   align-items:center;justify-content:center;text-align:center;padding:20px}
 @media (orientation:portrait){#rotate{display:flex}}
+
+[hidden]{display:none!important}
+input{user-select:text;touch-action:auto;font-size:15px;padding:7px;border-radius:8px;border:1px solid #888;width:100%}
+#hpbar{display:none;position:fixed;top:max(18px,env(safe-area-inset-top));left:calc(max(10px,env(safe-area-inset-left)) + 118px);width:26vmin;max-width:150px;height:14px;background:rgba(0,0,0,.55);border-radius:7px;overflow:hidden;z-index:5}
+#hp{display:block;height:100%;width:100%;background:linear-gradient(#ff5a5a,#c62828);transition:width .2s}
+#ammo{display:none;position:fixed;top:10px;right:max(80px,env(safe-area-inset-right));color:#fff;font:700 22px monospace;text-shadow:0 0 4px #000;z-index:5}
+#btn-music{display:none;position:fixed;top:8px;right:max(14px,env(safe-area-inset-right));width:50px;height:36px;border-radius:10px;border:0;background:rgba(0,0,0,.5);color:#fff;font-size:18px;z-index:6}
+#cross{display:none;position:fixed;left:50%;top:50%;width:8px;height:8px;margin:-4px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 3px #000;z-index:4;pointer-events:none}
+#btn-fire{display:none;position:fixed;right:5vmin;bottom:8vmin;width:92px;height:92px;border-radius:50%;border:3px solid #fff8;background:rgba(220,40,40,.75);color:#fff;font-weight:800;z-index:5}
+#btn-fire:active{background:rgba(255,80,80,.95)}
+#msg{display:none;position:fixed;top:22%;left:0;right:0;text-align:center;color:#fff;font:800 28px system-ui;text-shadow:0 2px 6px #000;z-index:7;pointer-events:none}
+#hurt{position:fixed;inset:0;opacity:0;transition:opacity .25s;background:radial-gradient(transparent 40%,rgba(255,0,0,.55));pointer-events:none;z-index:4}
+#lobby{position:fixed;inset:0;z-index:15;pointer-events:none}
+.panel{pointer-events:auto;position:absolute;left:max(2vmin,env(safe-area-inset-left));top:2vh;width:min(330px,48vw);max-height:96vh;overflow-y:auto;
+  background:rgba(255,255,255,.88);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.panel h2{margin:0;text-align:center}
+.panel button{padding:9px;border:0;border-radius:10px;background:#3a86ff;color:#fff;font-weight:700}
+.panel button.big{background:#2e9e4f;font-size:16px}
+.row{display:flex;gap:6px;align-items:center;justify-content:space-between}
+.row button{min-width:44px}.row input{flex:1}
+.code{font-size:26px;letter-spacing:4px;color:#c62828}
+#players{margin:4px 0;padding-left:18px}

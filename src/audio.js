@@ -1,7 +1,7 @@
 // Desa 3D - (c) 2026 rez x Gunz - MIT License
 // Audio prosedural (WebAudio): tanpa file suara, jadi APK tetap kecil & bebas error aset.
 export class GameAudio {
-  constructor() { this.ctx = null; }
+  constructor() { this.ctx = null; this.musicOn = true; this.kind = 'lobby'; }
 
   /** Harus dipanggil dari tap pengguna (kebijakan autoplay browser/WebView). */
   init() {
@@ -11,6 +11,7 @@ export class GameAudio {
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.8;
     this.master.connect(this.ctx.destination);
+    this.musicBus = this.ctx.createGain(); this.musicBus.gain.value = 0.9; this.musicBus.connect(this.master);
     // buffer derau putih dipakai ulang
     const n = this.ctx.sampleRate * 2;
     this.noise = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
@@ -86,4 +87,33 @@ export class GameAudio {
   engineStop() { if (this.eng) { this.eng.stop(this.ctx.currentTime + 0.3); this.eng = null; } }
   hiss() { this.burst(1.2, 'highpass', 3500, 0.3); }
   honk() { this.tone(330, 320, 0.5, 0.15, 'square'); }
+
+  // --- Senjata ---
+  shot(vol = 1) { this.burst(0.12, 'lowpass', 2600, 0.5 * vol); this.tone(190, 40, 0.14, 0.3 * vol, 'square'); }
+  hit() { this.tone(220, 70, 0.18, 0.25, 'sawtooth'); }
+  empty() { this.tone(900, 800, 0.04, 0.1, 'square'); }
+  reload() { this.burst(0.05, 'bandpass', 1800, 0.3); setTimeout(() => this.burst(0.06, 'bandpass', 1200, 0.35), 700); }
+
+  // --- Musik prosedural (sequencer arpeggio). kind: 'lobby' (ceria) | 'game' (santai) ---
+  _n(f, d, v, type) {
+    const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+    o.connect(g).connect(this.musicBus); o.start(t); o.stop(t + d);
+  }
+  musicStart(kind) {
+    if (!this.ctx) return;
+    this.kind = kind; this.musicStop(); if (!this.musicOn) return;
+    const lobby = kind === 'lobby', ms = lobby ? 140 : 280, ch = [[261.6, 329.6, 392, 523.3], [220, 261.6, 329.6, 440], [174.6, 220, 261.6, 349.2], [196, 246.9, 293.7, 392]];
+    const pat = [0, 1, 2, 3, 2, 1, 3, 2]; let s = 0;
+    this._mt = setInterval(() => {
+      const c = ch[(s >> 3) % 4], i = s % 8;
+      this._n(c[pat[i]] * (lobby ? 1 : 0.5), ms * 0.0016, lobby ? 0.09 : 0.06, lobby ? 'triangle' : 'sine');
+      if (i === 0) this._n(c[0] / 2, ms * 0.006, 0.12, 'sine');
+      if (lobby && i % 4 === 2) this._n(c[3] * 2, 0.1, 0.03, 'square');
+      s++;
+    }, ms);
+  }
+  musicStop() { clearInterval(this._mt); }
+  setMusic(on) { this.musicOn = on; on ? this.musicStart(this.kind) : this.musicStop(); }
 }

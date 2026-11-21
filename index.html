@@ -7,27 +7,34 @@
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="flash"></div>
 <div id="clock" class="hide">07:00</div>
 <div id="hud" class="hide">
+  <div id="cross" class="ni"></div>
+  <div id="hpw" class="ni"><div id="hpb"></div></div>
+  <div id="wpn" class="ni">👊 Tinju</div>
   <div id="stick"><div id="knob"></div></div>
   <button id="bJump">⤒</button><button id="bCrouch">▾</button><button id="bRun">»</button><button id="bAct">💬</button>
+  <button id="bAtk">💥</button><button id="bWeap">🔫</button>
 </div>
 <div id="dialog" class="hide"><b id="dn"></b><p id="dt"></p></div>
 <button id="skip" class="hide">Lewati ⏭</button>
 <div id="toast"></div>
 <div id="lobby"><div class="card">
   <h1>🏡 Desa Explorer 3D</h1><p class="sub">© rez x Gunz</p>
+  <input id="name" placeholder="Nama pemain" maxlength="12">
+  <div class="skinrow"><button id="skinPrev">◀</button><span id="skinName">Skin</span><button id="skinNext">▶</button></div>
   <div id="menu">
-    <input id="name" placeholder="Nama pemain" maxlength="12">
     <input id="server" placeholder="Server (ws://IP:8080)">
-    <input id="room" placeholder="Kode room (4 karakter)" maxlength="6">
+    <input id="room" placeholder="Kode room" maxlength="6">
     <button id="bSolo">▶ Main Solo</button>
     <button id="bCreate">➕ Buat Room</button>
-    <button id="bJoin">🔑 Gabung Room</button>
+    <button id="bJoin">🔑 Gabung</button>
   </div>
   <div id="roomPanel" class="hide">
     <h2>Room <span id="rc"></span> (maks 4)</h2><ul id="plist"></ul>
     <button id="bStart" class="hide">▶ Mulai Game</button><p id="wait">Menunggu host memulai…</p>
+    <button id="bLeave" class="gray">Keluar Room</button>
   </div>
   <p id="status"></p>
 </div></div>

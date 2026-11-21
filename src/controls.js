@@ -2,7 +2,7 @@
 export class Input {
   constructor(canvas) {
     this.joy = { x: 0, y: 0 }; this.drag = { x: 0, y: 0 };
-    this.crouch = false; this.run = false; this._j = false; this._a = false; this.keys = {}; this.sid = null;
+    this.crouch = false; this.run = false; this._j = false; this._a = false; this.keys = {}; this.sid = null; this.fire = false; this._w = false;
     const stick = document.getElementById('stick'), knob = document.getElementById('knob'), R = 50;
     const setJ = t => {
       const r = stick.getBoundingClientRect();
@@ -27,6 +27,8 @@ export class Input {
     bind('bCrouch', () => { this.crouch = !this.crouch; document.getElementById('bCrouch').classList.toggle('on', this.crouch); });
     bind('bRun', () => this.run = true, () => this.run = false);
     bind('bAct', () => this._a = true);
+    bind('bAtk', () => this.fire = true, () => this.fire = false);
+    bind('bWeap', () => this._w = true);
 
     // Geser layar = putar kamera
     let did = null, lx = 0, ly = 0;
@@ -40,10 +42,10 @@ export class Input {
     // Keyboard
     addEventListener('keydown', e => {
       const k = e.key.toLowerCase(); this.keys[k] = true;
-      if (k === ' ') this._j = true; if (k === 'e') this._a = true;
+      if (k === ' ') this._j = true; if (k === 'e') this._a = true; if (k === 'f') this.fire = true; if (k === 'q') this._w = true;
       if (k === 'c') { this.crouch = !this.crouch; document.getElementById('bCrouch').classList.toggle('on', this.crouch); }
     });
-    addEventListener('keyup', e => this.keys[e.key.toLowerCase()] = false);
+    addEventListener('keyup', e => { const k = e.key.toLowerCase(); this.keys[k] = false; if (k === 'f') this.fire = false; });
   }
   move() {
     const k = this.keys, x = (k.d || k.arrowright ? 1 : 0) - (k.a || k.arrowleft ? 1 : 0), y = (k.w || k.arrowup ? 1 : 0) - (k.s || k.arrowdown ? 1 : 0);
@@ -51,5 +53,6 @@ export class Input {
   }
   get running() { return this.run || !!this.keys.shift; }
   jump() { const j = this._j; this._j = false; return j; }
+  weap() { const w = this._w; this._w = false; return w; }
   act() { const a = this._a; this._a = false; return a; }
 }

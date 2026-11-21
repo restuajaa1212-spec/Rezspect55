@@ -1,10 +1,10 @@
 name: Build APK
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   workflow_dispatch:
 jobs:
-  apk:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,19 +16,17 @@ jobs:
         run: |
           npm install
           npm run build
-      - name: Buat proyek Android (Capacitor)
+      - name: Add Android platform
         run: |
           npx cap add android
+          npx cap sync android
           # Paksa mode landscape
           sed -i 's/<activity/<activity android:screenOrientation="sensorLandscape"/' android/app/src/main/AndroidManifest.xml
-          grep -n screenOrientation android/app/src/main/AndroidManifest.xml
-          npx cap sync android
-      - name: Build APK debug
-        working-directory: android
+      - name: Build debug APK
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          chmod +x android/gradlew
+          cd android && ./gradlew assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: Desa3D-debug-apk
+          name: DesaExplorer-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk

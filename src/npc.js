@@ -46,7 +46,7 @@ export function createNPCs(scene, sfx) {
   const inter = [], movers = [], vehicles = [];
   const add = (g, name, lines) => {
     scene.add(g); if (name) { const t = tag(name); t.position.y = 2.5; g.add(t); }
-    const e = { g, name, lines, i: 0, busy: false }; if (lines) inter.push(e); return e;
+    const e = { g, name, lines, i: 0, busy: false, hp: 60, dead: 0, fall: 0, y0: g.position.y }; if (lines) inter.push(e); return e;
   };
 
   // 1) NPC jalan kaki di trotoar
@@ -131,6 +131,12 @@ export function createNPCs(scene, sfx) {
       bell -= dt; if (bell <= 0) { bell = 6; if (Math.hypot(P.x - g.position.x, P.z - g.position.z) < 30) sfx.bell(); }
     }); }
 
+  // 8) Suster Klinik: memulihkan HP penuh + isi ulang medkit (lihat onTalk di main.js)
+  const nurse = (() => {
+    const g = humanoid(0xffffff, 0xf5f5f5); g.position.set(-44, 0, -13); box(.25, .08, .02, 0xd32f2f, 0, 1.45, .21, g); box(.08, .25, .02, 0xd32f2f, 0, 1.45, .21, g);
+    return add(g, 'Suster Ani', ['Selamat datang di Klinik!', 'Sini, saya obati lukamu sampai sembuh.', 'Medkit juga sudah saya isi ulang. Jaga diri ya!']);
+  })();
+
   let hornCd = 0;
   function update(dt, t, P) {
     movers.forEach(f => f(dt, t, P));
@@ -141,5 +147,5 @@ export function createNPCs(scene, sfx) {
     hornCd -= dt; if (near < 8 && hornCd <= 0 && bus.state !== 'arrive') { sfx.horn(); hornCd = 6; }
     return near; // jarak kendaraan terdekat (untuk volume mesin)
   }
-  return { update, inter, bus };
+  return { update, inter, bus, nurse };
 }

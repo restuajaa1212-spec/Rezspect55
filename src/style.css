@@ -46,3 +46,5 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:syste
 #flash.on{opacity:1;transition:none}
 #bAtk{right:200px;bottom:70px;width:84px;height:84px;background:rgba(229,57,53,.5)!important}
 #bWeap{right:205px;bottom:165px;width:56px;height:56px}
+#bHeal{right:275px;bottom:165px;width:56px;height:56px;background:rgba(0,200,83,.5)!important}
+#flash.heal{background:radial-gradient(transparent 40%,rgba(0,230,118,.45))}

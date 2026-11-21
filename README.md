@@ -19,7 +19,7 @@ desa-explorer-3d/
 Lewat Termux (git): `pkg install git` → `git init && git add -A && git commit -m init && git remote add origin <url> && git push -u origin main`.
 
 ## Jalankan lokal
-`npm install && npm run dev`  (keyboard: WASD, Spasi, C, Shift, E, F=serang, Q=ganti senjata, mouse drag=bidik)
+`npm install && npm run dev`  (keyboard: WASD, Spasi, C, Shift, E, F=serang, Q=ganti senjata, H=heal, mouse drag=bidik)
 
 ## Multiplayer (4 pemain)
 Jalankan server: `npm install && npm run server` (port 8080) di Termux/PC/hosting (Render, dll).
@@ -29,8 +29,10 @@ Catatan: posisi pemain disinkronkan; NPC berjalan lokal di tiap perangkat.
 ## Lobi, skin & PVP
 - Lobi: panggung 3D 4 slot. Ganti skin dengan ◀ ▶ (7 skin). Teman yang masuk room muncul di panggung beserta skin-nya.
 - Senjata: 👊 Tinju (jarak dekat, 12 dmg) dan 🔫 Pistol (12 peluru, 20 dmg, headshot 40, reload otomatis). Ganti senjata dengan tombol kecil di atas 💥.
-- Kamera PVP over-the-shoulder dengan crosshair; badan selalu menghadap arah bidik. Peluru terhalang bangunan/pohon.
-- HP 100 per pemain, mati → respawn 3 detik di halte. NPC yang kena tembak/pukul berhenti kaget.
+- Kamera orang pertama (FPS): hanya tangan & pistol yang terlihat, dengan crosshair. Peluru terhalang bangunan/pohon.
+- Heal: tombol 🩹 memakai medkit (+40 HP, mulai 3 medkit). Bicara dengan Suster Ani di Klinik = HP penuh + medkit terisi lagi.
+- Warga (NPC bernama) punya 60 HP: bisa ditembak/dipukul sampai tumbang, lalu bangkit lagi setelah 12 detik.
+- HP 100 per pemain, mati → respawn 3 detik di halte. 
 
 ## Kontrol
 Stik kiri = jalan · geser layar = bidik/kamera · 💥 Serang (tahan) · 🔫/👊 ganti senjata · ⤒ Loncat · ▾ Jongkok (toggle) · » Lari (tahan) · 💬 bicara dengan NPC terdekat.

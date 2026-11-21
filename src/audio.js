@@ -46,4 +46,5 @@ export class Sfx {
   hit() { this.tone(900, .05, 'square', .05); }
   hurt() { this.tone(200, .2, 'sawtooth', .08, -100); }
   click() { this.tone(1200, .03, 'square', .04); }
+  heal() { this.tone(520, .12, 'sine', .08); setTimeout(() => this.tone(780, .2, 'sine', .08), 110); }
 }

@@ -7,6 +7,7 @@ const SPOTS = [
   { t: 'w', id: 2, x: -12, z: 9.5 }, { t: 'w', id: 3, x: 3, z: -10.5 }, { t: 'w', id: 4, x: -56, z: -10.5 }, { t: 'w', id: 5, x: 31, z: -10.5 },
   { t: 'w', id: 2, x: 62, z: 9.5 }, { t: 'w', id: 3, x: -96, z: -8 }, { t: 'w', id: 4, x: 6, z: 30 }, { t: 'w', id: 5, x: -80, z: 9.5 },
   { t: 'ammo', x: -30, z: -10.5 }, { t: 'ammo', x: 20, z: 9.5 }, { t: 'ammo', x: 90, z: -10.5 },
+  { t: 'w', id: 4, x: -16, z: 34.6 }, { t: 'ammo', x: -19, z: 30.2 }, { t: 'med', x: -13, z: 30.2 }, // di dalam bunker
   { t: 'med', x: -8, z: -10.5 }, { t: 'med', x: 35, z: 9.5 }, { t: 'med', x: -75, z: -10.5 },
 ];
 const COL = { w: 0xffc107, ammo: 0x8bc34a, med: 0xf44336 };

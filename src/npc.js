@@ -1,7 +1,7 @@
 // NPC (jalan kaki, motor, mobil, bus, pemain bola, duduk di warung, penjual) + model manusia.
 import * as THREE from 'three';
 import { M, box, tag, rnd } from './util.js';
-import { FIELD } from './world.js';
+import { FIELD, colliders } from './world.js';
 
 const rc = () => [0xd9534f, 0x5bc0de, 0xf0ad4e, 0x5cb85c, 0x9b59b6, 0xe67e22, 0xffffff][Math.floor(Math.random() * 7)];
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -28,6 +28,7 @@ export function soldier(k = Math.floor(Math.random() * 3), medic = false) {
   box(.8, .55, .46, medic ? 0xeeeeee : 0x2b3320, 0, 1.32, 0, g);
   if (medic) { box(.25, .08, .02, 0xd32f2f, 0, 1.38, .24, g); box(.08, .25, .02, 0xd32f2f, 0, 1.38, .24, g); }
   else { const r = box(.08, .9, .1, 0x1c1c1c, .15, 1.25, -.3, g); r.rotation.z = .35; }
+  const hg = new THREE.Group(); box(.07, .55, .09, 0x1c1c1c, 0, -.8, 0, hg); hg.visible = false; g.armR.add(hg); g.hg = hg; // senjata di tangan (muncul saat marah)
   return g;
 }
 export function walkAnim(g, ph, amt = .7) {
@@ -150,9 +151,58 @@ export function createNPCs(scene, sfx) {
     return add(g, 'Medis Ani', ['Selamat datang di Pos Medis!', 'Sini, saya rawat lukamu sampai pulih.', 'Medkit sudah diisi ulang. Siap kembali bertugas!']);
   })();
 
+  nurse.peaceful = true; // tenaga medis tidak menyerang
+
+  // ---- AI marah: kejar, tembak, atau pukul pemain ----
+  function blocked(ax, az, bx, bz) { // garis pandang terhalang bangunan/pohon? (uji slab 2D)
+    const dx = bx - ax, dz = bz - az;
+    for (const c of colliders) {
+      let t0 = 0, t1 = 1, hit = true;
+      for (let k = 0; k < 2; k++) {
+        const p = k ? dz : dx, q = k ? az : ax, mn = k ? c.z - c.hz : c.x - c.hx, mx = k ? c.z + c.hz : c.x + c.hx;
+        if (Math.abs(p) < 1e-9) { if (q < mn || q > mx) { hit = false; break; } }
+        else { let a = (mn - q) / p, b = (mx - q) / p; if (a > b) { const s = a; a = b; b = s; } t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) { hit = false; break; } }
+      }
+      if (hit) return true;
+    }
+    return false;
+  }
+  function pushOut(p, r = .5) {
+    for (const c of colliders) {
+      const nx = Math.max(c.x - c.hx, Math.min(c.x + c.hx, p.x)), nz = Math.max(c.z - c.hz, Math.min(c.z + c.hz, p.z)), dx = p.x - nx, dz = p.z - nz, d2 = dx * dx + dz * dz;
+      if (d2 < r * r && d2 > 1e-6) { const d = Math.sqrt(d2); p.x = nx + dx / d * r; p.z = nz + dz / d * r; }
+    }
+  }
+  function calm(e) { e.hostile = false; e.busy = false; if (e.g.hg) e.g.hg.visible = false; e.g.armL.rotation.set(0, 0, 0); e.g.armR.rotation.set(0, 0, 0); }
+  function provoke(e, cascade = true) { // NPC marah; rekan dalam radius 30 ikut marah
+    if (e.dead || e.hostile || e.peaceful) return;
+    e.hostile = true; e.busy = true; e.hostileT = 30; e.cd = .8 + Math.random() * .6; e.y0 = 0;
+    if (cascade) for (const o of inter) if (o !== e && !o.dead && Math.hypot(o.g.position.x - e.g.position.x, o.g.position.z - e.g.position.z) < 30) provoke(o, false);
+  }
+  function hostileAI(e, dt, P, H) {
+    const g = e.g, p = g.position, dx = P.x - p.x, dz = P.z - p.z, d = Math.hypot(dx, dz);
+    p.y = 0; g.rotation.x = 0; g.rotation.y = Math.atan2(dx, dz); if (g.hg) g.hg.visible = true;
+    const see = !blocked(p.x, p.z, P.x, P.z);
+    e.hostileT = see ? 30 : e.hostileT - dt;
+    if (e.hostileT <= 0 || d > 90 || H.calm()) { calm(e); return; }
+    e.cd -= dt; let moving = false; const want = see ? 9 : 2;
+    if (d > want) { const sp = see ? 3.2 : 4; p.x += dx / d * sp * dt; p.z += dz / d * sp * dt; moving = true; pushOut(p); }
+    e.ph = (e.ph || 0) + (moving ? dt * 10 : 0); const sw = moving ? Math.sin(e.ph) * .7 : 0;
+    g.legL.rotation.x = sw; g.legR.rotation.x = -sw; g.armR.rotation.x = -1.45; g.armL.rotation.x = -1.25;
+    if (e.cd <= 0) {
+      if (d < 2.2) { H.hurt(10); sfx.punch(); e.cd = .9; }                      // pukul jarak dekat
+      else if (see && d < 50) {                                                // tembak
+        e.cd = rnd(.7, 1.2); const hit = Math.random() < Math.max(.15, .7 - d / 70), j = hit ? 0 : 1.5;
+        H.tracer(new THREE.Vector3(p.x + Math.sin(g.rotation.y) * .6, 1.5, p.z + Math.cos(g.rotation.y) * .6), new THREE.Vector3(P.x + rnd(-j, j), 1.3 + rnd(-j, j) * .3, P.z + rnd(-j, j)));
+        sfx.shot(Math.max(.15, 1 - d / 60)); if (hit) H.hurt(8);
+      }
+    }
+  }
+
   let hornCd = 0;
-  function update(dt, t, P) {
+  function update(dt, t, P, H) {
     movers.forEach(f => f(dt, t, P));
+    if (H) for (const e of inter) if (e.hostile && !e.dead) hostileAI(e, dt, P, H);
     for (const v of vehicles) { const p = v.g.position; p.x += v.dir * v.sp * dt; if (p.x > 130) p.x = -130; if (p.x < -130) p.x = 130; }
     updBus(dt);
     let near = 999;
@@ -160,5 +210,5 @@ export function createNPCs(scene, sfx) {
     hornCd -= dt; if (near < 8 && hornCd <= 0 && bus.state !== 'arrive') { sfx.horn(); hornCd = 6; }
     return near; // jarak kendaraan terdekat (untuk volume mesin)
   }
-  return { update, inter, bus, nurse };
+  return { update, inter, bus, nurse, provoke };
 }

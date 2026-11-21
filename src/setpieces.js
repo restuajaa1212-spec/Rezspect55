@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { M, box } from './util.js';
 
 // Pesawat angkut (menghadap +X)
-export function buildPlane() {
+export function buildPlane(c = 0xdfe6e9) {
   const g = new THREE.Group();
-  box(16, 2.4, 2.4, 0xdfe6e9, 0, 0, 0, g); box(2.6, 1.9, 1.9, 0xb0bec5, 8.9, -.1, 0, g);
+  box(16, 2.4, 2.4, c, 0, 0, 0, g); box(2.6, 1.9, 1.9, 0xb0bec5, 8.9, -.1, 0, g);
   box(3, .35, 22, 0xb0bec5, 0, -.3, 0, g);
   box(2.2, 3.4, .3, 0xb0bec5, -7.5, 2.2, 0, g); box(2, .3, 7, 0xb0bec5, -7.5, .7, 0, g);
   box(10, .3, 2.45, 0x1565c0, 0, .5, 0, g);
@@ -39,4 +39,17 @@ export function buildTank(c) {
   const b = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, 4.6, 8), M(0x2f2f2f)); b.rotation.z = Math.PI / 2; b.position.set(3.4, .5, 0); t.add(b);
   box(.5, .35, .35, 0x222222, 5.6, .5, 0, t);
   g.turret = t; return g;
+}
+
+// Bangkai mobil hangus (menghadap +X)
+export function buildWreck() {
+  const g = new THREE.Group(), dk = 0x2d2a26, k = 0x1a1a1a;
+  box(3.8, .7, 1.9, dk, 0, .75, 0, g);
+  const roof = box(1.5, .12, 1.7, k, -.5, 1.55, 0, g); roof.rotation.z = .12;
+  for (const z of [-.8, .8]) box(.08, .8, .08, k, -1.1, 1.15, z, g);
+  const hood = box(1.1, .05, 1.6, 0x3b3b3b, 1.2, 1.2, 0, g); hood.rotation.z = -.5;
+  box(1.2, .05, .8, 0x6b7a3e, .9, 1.12, .3, g);
+  for (const [x, z] of [[-1.3, .95], [1.3, -.95]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.4, .4, .25, 8), M(0x111111)); w.rotation.x = Math.PI / 2; w.position.set(x, .4, z); g.add(w); }
+  box(4.4, .02, 2.5, 0x0a0a0a, 0, .03, 0, g);
+  return g;
 }

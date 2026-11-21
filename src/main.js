@@ -82,7 +82,7 @@ function talk(e) {
 
 // ---------- Pemain lain (multiplayer) ----------
 const remotes = new Map();
-const names = id => (roster.find(p => p.id === id) || {}).name || 'Pemain';
+const names = id => id === -1 ? 'Prajurit' : (roster.find(p => p.id === id) || {}).name || 'Pemain';
 function remote(id, name, skin) {
   let r = remotes.get(id);
   if (!r) {
@@ -127,10 +127,11 @@ function castRay(o, d, range) {
   }
   return { dist: best, tgt, head };
 }
-function hurtNpc(e, dmg) { // warga bisa terluka sampai mati (bangkit lagi setelah 12 detik)
+function hurtNpc(e, dmg) { // prajurit bisa tumbang (bangkit 12 dtk lagi); jika ditembak mereka MARAH & menyerang balik
   e.hp -= dmg;
-  if (e.hp <= 0) { e.dead = 12; e.fall = 0; e.busy = true; if (current === e) closeDialog(); sfx.hurt(); toast('Prajurit tumbang!'); }
-  else { e.stun = 1.5; e.busy = true; }
+  if (current === e) closeDialog();
+  if (e.peaceful) { e.stun = 1.5; e.busy = true; } else npcs.provoke(e);
+  if (e.hp <= 0) { e.hostile = false; if (e.g.hg) e.g.hg.visible = false; e.dead = 12; e.fall = 0; e.busy = true; sfx.hurt(); toast('Prajurit tumbang!'); }
 }
 function applyHit(tgt, dmg) {
   sfx.hit(); hitMarker();
@@ -156,6 +157,10 @@ function shoot(c) {
   }
   net && net.send({ t: 'fx', k: 'g', ex: +first.x.toFixed(1), ey: +first.y.toFixed(1), ez: +first.z.toFixed(1) });
   for (const [t, dmg] of hits) applyHit(t, dmg);
+  for (const e of npcs.inter) { // tembakan nyaris kena juga membuat prajurit di dekat garis tembak marah
+    if (e.dead || e.hostile) continue; const q = e.g.position;
+    if (sphereT(o, base, new THREE.Vector3(q.x, q.y + 1.2, q.z), 1.8, c.range) !== null) npcs.provoke(e);
+  }
   P.pitch = clamp(P.pitch + c.kick, -1.3, 1.3);
   if (W.mag[id] === 0) startReload(); updWpn();
 }
@@ -185,6 +190,17 @@ function pickup(s) {
   else { W.meds = Math.min(5, W.meds + 1); toast('Medkit +1'); }
   sfx.pickup(); updWpn();
 }
+// Serangan NPC & ledakan bom terhadap pemain
+function hurtMe(d) { if (state !== 'play' || W.dead > 0) return; W.hp = Math.max(0, W.hp - d); W.last = -1; updHp(); dmgFlash(); sfx.hurt(); if (W.hp <= 0) die(); }
+const hooks = { tracer: (a, b) => tracer(a, b), hurt: hurtMe, calm: () => W.dead > 0 };
+const warCb = {
+  warn: s => toast(s),
+  blast: (x, z, r, dmg) => { // bom: tidak melukai bila berlindung di dalam bunker
+    if (state !== 'play' || W.dead > 0) return;
+    if (world.inBunker(P.x, P.z)) { toast('Aman di dalam bunker 🛡️'); return; }
+    const d = Math.hypot(P.x - x, P.z - z); if (d < r) hurtMe(dmg * (1 - d / r));
+  }
+};
 function die() {
   W.dead = 3; W.hp = 0; updHp(); net && net.send({ t: 'kill', by: W.last, victim: myId }); toast('Kamu kalah! Respawn 3 detik…'); closeDialog();
 }
@@ -271,7 +287,7 @@ function updatePlay(dt) {
     if (e.dead > 0) {
       e.fall = Math.min(1, e.fall + dt * 3); e.g.rotation.x = -1.5 * e.fall; e.g.position.y = e.y0 + .12 * e.fall;
       if ((e.dead -= dt) <= 0) { e.dead = 0; e.hp = 60; e.busy = false; e.fall = 0; e.g.rotation.x = 0; e.g.position.y = e.y0; }
-    } else if (e.stun > 0 && (e.stun -= dt) <= 0 && e !== current) e.busy = false;
+    } else if (e.stun > 0 && (e.stun -= dt) <= 0 && e !== current) e.busy = !!e.hostile;
   }
   // Animasi & langkah kaki
   if (P.moving && P.y === 0) {
@@ -291,7 +307,7 @@ function updatePlay(dt) {
   }
   // Interaksi NPC
   let near = null, nd = 3.2;
-  for (const e of npcs.inter) { if (e.dead) continue; const dd = Math.hypot(e.g.position.x - P.x, e.g.position.z - P.z); if (dd < nd) { nd = dd; near = e; } }
+  for (const e of npcs.inter) { if (e.dead || e.hostile) continue; const dd = Math.hypot(e.g.position.x - P.x, e.g.position.z - P.z); if (dd < nd) { nd = dd; near = e; } }
   $('bAct').classList.toggle('on', !!near);
   const act = input.act(); if (act && near && alive) talk(near);
   if (current && current !== near) closeDialog();
@@ -372,9 +388,9 @@ const clk = new THREE.Clock(); refreshStage();
 function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clk.getDelta(), .05), t = clk.elapsedTime;
-  world.update(dt, t, state === 'lobby' ? null : P);
+  world.update(dt, t, state === 'lobby' ? null : P, warCb);
   pickups.update(dt, t, state === 'play' && W.dead <= 0 ? P : null, pickup);
-  const near = npcs.update(dt, t, state === 'lobby' ? { x: 0, z: 0 } : P);
+  const near = npcs.update(dt, t, state === 'lobby' ? { x: 0, z: 0 } : P, hooks);
   if (state === 'lobby') { // kamera panggung lobi + animasi diam karakter
     camera.position.set(2.8, 2.3, STAGE_Z + 8.8); camera.lookAt(2.8, 1.4, STAGE_Z);
     stage.forEach((s, i) => { if (s) { s.g.rotation.y = Math.sin(t * (s.me ? 1 : .7) + i) * (s.me ? .8 : .3); pose(s.g, { ph: t * 2, amt: .05 }); } });

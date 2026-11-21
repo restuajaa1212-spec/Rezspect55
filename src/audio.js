@@ -41,7 +41,7 @@ export class Sfx {
   kick() { this.tone(130, .12, 'sine', .2, -80); this.noise(.05, .1, 400); }
   talk() { for (let i = 0; i < 3; i++) setTimeout(() => this.tone(380 + Math.random() * 200, .07, 'triangle', .06), i * 80); }
   bell() { this.tone(1500, .4, 'sine', .06); setTimeout(() => this.tone(1800, .4, 'sine', .05), 150); }
-  shot() { this.noise(.12, .25, 1500); this.tone(110, .15, 'square', .1, -60); }
+  shot(v = 1) { this.noise(.12, .25 * v, 1500); this.tone(110, .15, 'square', .1 * v, -60); }
   punch() { this.noise(.1, .12, 300); this.tone(90, .1, 'sine', .15, -30); }
   hit() { this.tone(900, .05, 'square', .05); }
   hurt() { this.tone(200, .2, 'sawtooth', .08, -100); }
@@ -52,4 +52,5 @@ export class Sfx {
   wind() { this.noise(.4, .08, 700); }
   chute() { this.noise(.5, .25, 900); this.tone(150, .3, 'sine', .1, -60); }
   pickup() { this.tone(660, .08, 'square', .05); setTimeout(() => this.tone(990, .12, 'square', .05), 80); }
+  plane(v = 1) { this.tone(80, 7, 'sawtooth', .05 * v, 15); this.noise(6, .03 * v, 300); }
 }

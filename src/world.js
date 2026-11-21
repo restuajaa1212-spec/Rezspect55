@@ -28,6 +28,23 @@ export function buildWorld(scene, sfx) {
   for (const z of [-6.5, 6.5]) flat(260, 3, 0xb8b8b0, 0, .05, z);
   flat(6, 43, 0xc2a878, 0, .035, 26.5);           // jalan tanah ke sungai
 
+  // ---- Jalan retak & rusak (InstancedMesh: 1 draw call per jenis) ----
+  { const dm = new THREE.Object3D(), segs = [];
+    const chain = (zr, y, n) => { for (let k = 0; k < n; k++) { let cx = rnd(-125, 125), cz = zr + rnd(-1.2, 1.2) * (zr ? .5 : 3.8), a = rnd(0, Math.PI); for (let q = 0; q < 4; q++) { const len = rnd(.8, 2.2); segs.push([cx + Math.cos(a) * len / 2, y, cz + Math.sin(a) * len / 2, len, a]); cx += Math.cos(a) * len; cz += Math.sin(a) * len; a += rnd(-.9, .9); } } };
+    chain(0, .075, 90); chain(6.5, .09, 20); chain(-6.5, .09, 20);
+    const cr = new THREE.InstancedMesh(new THREE.BoxGeometry(1, .02, .12), new THREE.MeshBasicMaterial({ color: 0x0c0c0c }), segs.length);
+    segs.forEach(([x, y, z, len, a], i) => { dm.position.set(x, y, z); dm.rotation.set(0, -a, 0); dm.scale.set(len, 1, rnd(.7, 1.6)); dm.updateMatrix(); cr.setMatrixAt(i, dm.matrix); });
+    scene.add(cr);
+    const holes = [[-70, 1, 2.6], [30, -1.5, 2.4], [-5, .5, 2.2], [62, 1.5, 2.8], [-100, -1, 2.3]]; // kawah besar
+    for (let i = 0; i < 22; i++) holes.push([rnd(-120, 120), rnd(-4, 4), rnd(.5, 1.3)]);
+    const ph = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 12), new THREE.MeshBasicMaterial({ color: 0x131316 }), holes.length);
+    holes.forEach(([x, z, r], i) => { dm.position.set(x, .08, z); dm.rotation.set(-Math.PI / 2, 0, 0); dm.scale.set(r, r, 1); dm.updateMatrix(); ph.setMatrixAt(i, dm.matrix); });
+    scene.add(ph);
+    const slabs = []; holes.forEach(([x, z, r]) => { for (let k = 0; k < Math.ceil(r * 2); k++) { const a = rnd(0, 6.28); slabs.push([x + Math.cos(a) * r * 1.1, z + Math.sin(a) * r * 1.1]); } });
+    const sl = new THREE.InstancedMesh(new THREE.BoxGeometry(1, .15, 1), new THREE.MeshLambertMaterial({ color: 0x5a5a60 }), slabs.length);
+    slabs.forEach(([x, z], i) => { dm.position.set(x, .12, z); dm.rotation.set(rnd(-.35, .35), rnd(0, 3), rnd(-.35, .35)); dm.scale.set(rnd(.4, 1.1), 1, rnd(.4, .9)); dm.updateMatrix(); sl.setMatrixAt(i, dm.matrix); });
+    scene.add(sl); }
+
   // ---- Sungai + jembatan ----
   flat(500, 14, 0xcdb98a, 0, .03, RIVER_Z);       // pasir tepi sungai
   flat(500, 9, 0x2e8bd6, 0, .06, RIVER_Z, { transparent: true, opacity: .85 });
@@ -57,6 +74,10 @@ export function buildWorld(scene, sfx) {
     if (i !== 0) place('s' + i, { x, z: 18, wall: pickC(i + 5) }, x, 18);
     if (i <= 1) place('t' + i, { x: x * 1.3, z: -34, wall: pickC(i + 1), w: 8, d: 7 }, x * 1.3, -34);
   }
+  // Bunker (bisa dimasuki) + bangkai mobil di sepanjang jalan
+  war.bunker();
+  [[-100, 4.3, .2, 1, 0], [-82, -4.4, 3.3, 0, 1], [-47, 4.2, -.15, 1, 0], [-30, -7.2, 1.2, 0, 0], [-5, -4.3, 3.0, 1, 0], [14, 4.4, .1, 0, 1], [38, -4.3, 3.4, 1, 0], [58, 7.2, .7, 0, 0], [82, -4.4, 2.9, 1, 0], [102, 4.2, .3, 1, 0]]
+    .forEach(([x, z, ry, burn, flip]) => war.wreck(x, z, ry, burn, flip));
   // Tank di tepi jalan
   war.tank(-64, -12, 0, 0x4b5d2a); war.tank(46, -12, Math.PI, 0xa89968); war.tank(-85, 11, Math.PI, 0x4b5d2a); war.tank(75, 11, 0, 0xa89968);
   // Bangunan khusus
@@ -96,6 +117,7 @@ export function buildWorld(scene, sfx) {
   // ---- Pohon ----
   const free = (x, z, pad) => {
     if (Math.abs(z) < 10 || Math.abs(z - RIVER_Z) < 10 || (Math.abs(x) < 5 && z > 0)) return false;
+    if (Math.abs(x - war.bk.x) < 9 && Math.abs(z - war.bk.z) < 8) return false;
     if (war.sites.some(q => Math.hypot(x - q.x, z - q.z) < 7)) return false;
     if (Math.abs(x - FIELD.x) < FIELD.w / 2 + 4 && Math.abs(z - FIELD.z) < FIELD.d / 2 + 4) return false;
     return !colliders.some(c => Math.abs(x - c.x) < c.hx + pad && Math.abs(z - c.z) < c.hz + pad);
@@ -127,7 +149,8 @@ export function buildWorld(scene, sfx) {
     c.position.set(rnd(-200, 200), rnd(50, 75), rnd(-200, 200)); scene.add(c); clouds.push(c);
   }
   return {
-    update(dt, t, P) { for (const c of clouds) { c.position.x += dt * 1.5; if (c.position.x > 220) c.position.x = -220; } war.update(dt, t, P); },
-    get shake() { return war.shake; }
+    update(dt, t, P, cb) { for (const c of clouds) { c.position.x += dt * 1.5; if (c.position.x > 220) c.position.x = -220; } war.update(dt, t, P, cb); },
+    get shake() { return war.shake; },
+    inBunker: (x, z) => war.inBunker(x, z)
   };
 }

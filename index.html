@@ -6,7 +6,8 @@
 :root{--fg:#fff;--panel:rgba(10,14,20,.72);--acc:#ffcc33;color-scheme:dark}
 html,body{margin:0;height:100%;overflow:hidden;background:#87ceeb;color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
 canvas{display:block}
-#hud{position:fixed;top:max(10px,env(safe-area-inset-top));left:12px;background:var(--panel);padding:6px 12px;border-radius:8px;font-size:15px}
+#hud{max-width:calc(100vw - 170px);box-sizing:border-box;position:fixed;top:max(10px,env(safe-area-inset-top));left:12px;background:var(--panel);padding:6px 12px;border-radius:8px;font-size:15px}
+#hp{position:fixed;top:max(10px,env(safe-area-inset-top));right:12px;width:120px;height:16px;background:#0009;border-radius:8px;overflow:hidden;border:1px solid #fff6}#hp i{display:block;height:100%;width:100%;background:#e53935}#hp b{position:absolute;inset:0;text-align:center;font-size:11px;line-height:16px}
 #xh{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-size:22px;color:#fff;text-shadow:0 0 3px #000;pointer-events:none}
 #toast{position:fixed;top:max(52px,calc(env(safe-area-inset-top) + 42px));left:50%;transform:translateX(-50%);background:var(--panel);padding:6px 14px;border-radius:8px;font-size:15px;display:none;max-width:80vw;text-align:center}
 #pr{position:fixed;left:50%;top:58%;transform:translateX(-50%);background:var(--panel);padding:6px 14px;border-radius:8px;display:none;font-size:15px}
@@ -16,17 +17,19 @@ canvas{display:block}
 #ov h1{margin:0;font-size:34px}#ov p{margin:0;max-width:440px;line-height:1.5;opacity:.9}
 #go{background:var(--acc);color:#111;border:0;font-size:20px;font-weight:700;padding:12px 36px;border-radius:10px}
 #ov input{width:min(80vw,280px);padding:11px 14px;font-size:17px;border-radius:10px;border:2px solid #fff6;background:#0008;color:#fff;text-align:center;user-select:text;-webkit-user-select:text}#ov .sm{background:none;border:1px solid #fff6;color:#fff;border-radius:8px;padding:6px 12px;font-size:14px}
+#shop{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(90vw,340px);background:var(--panel);border:2px solid var(--acc);border-radius:12px;padding:14px;display:none;text-align:center;box-sizing:border-box}#shop button{display:block;width:100%;margin:6px 0;padding:11px;font-size:16px;border-radius:8px;border:0;background:var(--acc);color:#111;font-weight:600}#shop small{opacity:.75}
 .btn{position:fixed;display:none;width:64px;height:64px;border-radius:50%;background:var(--panel);border:2px solid #fff8;color:#fff;font-size:15px;align-items:center;justify-content:center;text-align:center}
 .touch .btn{display:flex}
 #bf{right:18px;bottom:max(30px,env(safe-area-inset-bottom));width:84px;height:84px;background:rgba(220,60,40,.7)}
 #bj{right:112px;bottom:max(30px,env(safe-area-inset-bottom))}
 #be{right:18px;bottom:calc(max(30px,env(safe-area-inset-bottom)) + 100px)}
+#bh{left:18px;bottom:calc(max(30px,env(safe-area-inset-bottom)) + 130px)}
 #bw{right:98px;bottom:calc(max(30px,env(safe-area-inset-bottom)) + 84px)}
 </style></head><body>
-<div id="hud"></div><div id="xh">+</div><div id="toast"></div><div id="pr">Tekan E untuk bicara</div><div id="dlg"></div>
-<div class="btn" id="bf">TEMBAK</div><div class="btn" id="bj">LOMPAT</div><div class="btn" id="be">BICARA</div><div class="btn" id="bw">GANTI</div>
+<div id="hud"></div><div id="hp"><i id="hpi"></i><b id="hpv"></b></div><div id="xh">+</div><div id="toast"></div><div id="pr">Tekan E untuk bicara</div><div id="dlg"></div><div id="shop"></div>
+<div class="btn" id="bf">TEMBAK</div><div class="btn" id="bj">LOMPAT</div><div class="btn" id="be">BICARA</div><div class="btn" id="bw">GANTI</div><div class="btn" id="bh">P3K</div>
 <div id="ov"><h1>Kota 3D</h1>
-<p>WASD jalan, mouse lihat, klik kiri serang, Spasi lompat, E bicara, 1 tinju, 2 pistol, 3 shotgun.<br>Di layar sentuh: geser kiri untuk jalan, geser kanan untuk melihat.<br>Tinju = One Punch Man: sekali pukul, NPC terbang! Mabar: isi kode tim yang sama dengan temanmu.</p>
+<p>WASD jalan, mouse lihat, klik kiri serang, Spasi lompat, E bicara, 1 tinju, 2 pistol, 3 shotgun.<br>Di layar sentuh: geser kiri untuk jalan, geser kanan untuk melihat.<br>Tinju = One Punch Man: sekali pukul, NPC terbang! Mabar: isi kode tim yang sama dengan temanmu.<br>Shift = lari. Dekati warung lalu tekan E untuk beli makanan. H = pakai P3K untuk heal. Awas, NPC yang kamu serang bisa membalas!</p>
 <input id="nick" maxlength="14" placeholder="Nickname kamu" autocomplete="off">
 <input id="code" maxlength="24" placeholder="Kode tim (opsional, untuk mabar)" autocomplete="off">
 <button class="sm" id="rnd">Buat kode tim baru</button>
@@ -83,6 +86,14 @@ const talk=[
 const ball=new T.Mesh(new T.SphereGeometry(.3,16,12),new T.MeshLambertMaterial({color:0xffffff}));
 ball.position.set(0,.3,FZ);scene.add(ball);ball.userData.ball=true;ball.vx=0;ball.vz=0;
 const targets=[...foot,...talk].map(n=>n.g).concat(ball);
+/* ===== Warung ===== */
+const WX=-22,WZ=12;
+box(4,1.1,1.2,0x8d6e63,WX,.55,WZ);box(4.4,2.6,.2,0xd7b98e,WX,1.3,WZ+1.4);box(.2,2.6,2.8,0xd7b98e,WX-2.1,1.3,WZ+.3);box(.2,2.6,2.8,0xd7b98e,WX+2.1,1.3,WZ+.3);
+box(5,.2,3.4,0xc62828,WX,2.7,WZ+.3);
+for(let i=0;i<4;i++)box(.4,.3,.4,[0xffb300,0x43a047,0x1e88e5,0xe53935][i],WX-1.5+i,1.25,WZ);
+const wk=person(0xfdd835,0x4e342e);wk.position.set(WX,0,WZ+.7);wk.rotation.y=Math.PI;wk.add(tag('Bu Tini','#ffd54f'));
+const ws=tag('WARUNG BU TINI','#ffd54f');ws.scale.set(5,1.25,1);ws.position.set(WX,3.5,WZ);scene.add(ws);
+col.push({x0:WX-2.1,x1:WX+2.1,z0:WZ-.6,z1:WZ+1.5});
 
 /* ===== Tangan & senjata (viewmodel) ===== */
 const sleeve=0x2a4d8f,vm={};
@@ -98,17 +109,17 @@ box(.07,.07,.95,0x333333,.1,-.2,-.78,vm.shotgun);box(.1,.08,.28,0x6b4423,.1,-.27
 vm.shotgun.fl=flash(vm.shotgun,.1,-.2,-1.32);
 const WL=[vm.fist,vm.pistol,vm.shotgun];WL.forEach(g=>{cam.add(g);g.visible=false});
 const W=[{n:"Tinju One Punch",cd:.45,p:1,sp:0,r:2.8,push:5},{n:"Pistol",cd:.28,p:1,sp:.01,r:60,push:5},{n:"Shotgun",cd:.85,p:8,sp:.13,r:25,push:3}];
-let cur=0,cool=0,kick=0,punchT=1,punchSide=0,flashT=0,nick="Pemain",code="",room=null,ps=0;const remotes={};
-function setW(i){cur=i;WL.forEach((g,k)=>g.visible=k===i);$('hud').textContent=W[i].n+" ("+(i+1)+")  |  "+nick+(code?"  |  Tim "+code+" ("+(Object.keys(remotes).length+1)+")":"")}
+let cur=0,cool=0,kick=0,punchT=1,punchSide=0,flashT=0,nick="Pemain",code="",room=null,ps=0,stepT=0,money=20000,shopOpen=false,hp=100,kits=1,hurtT=0;const remotes={},boost={spd:0,jmp:0};
+function setW(i){cur=i;WL.forEach((g,k)=>g.visible=k===i);$('hud').textContent=W[i].n+" ("+(i+1)+")  |  "+nick+"  |  Rp"+money.toLocaleString('id-ID')+"  |  P3K "+kits+(code?"  |  Tim "+code+" ("+(Object.keys(remotes).length+1)+")":"")}
 setW(0);
 
 /* ===== Pemain ===== */
 const P=cam.position;P.set(0,1.7,6.5);let yaw=0,pitch=0,vy=0,t=0,started=false,fireHeld=false,dlg=null;
 const k={},mv={x:0,z:0},ray=new T.Raycaster();ray.camera=cam;
 function toast(s){const e=$('toast');e.textContent=s;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',1600)}
-function hurt(n,d,push,big){if(big){n.kx=d.x*38;n.kz=d.z*38;n.vy=9;n.ht=1.2;toast("ONE PUNCH! "+n.name+" terbang!");return}n.kx=d.x*push;n.kz=d.z*push;n.ht=.4;toast(n.name+": "+hurtLines[Math.random()*4|0])}
+function hurt(n,d,push,big){if(n.lines)n.angry=10;if(big){n.kx=d.x*38;n.kz=d.z*38;n.vy=9;n.ht=1.2;sfx('boom');toast("ONE PUNCH! "+n.name+" terbang!");return}n.kx=d.x*push;n.kz=d.z*push;n.ht=.4;toast(n.name+": "+hurtLines[Math.random()*4|0])}
 function fire(){
- if(cool>0||dlg||!started)return;const w=W[cur];cool=w.cd;kick=1;
+ if(cool>0||dlg||shopOpen||!started)return;const w=W[cur];cool=w.cd;kick=1;sfx(['punch','pistol','shotgun'][cur]);
  if(cur===0){punchT=0;punchSide^=1}else{flashT=.06;WL[cur].fl.visible=true}
  let hit=false;
  for(let i=0;i<w.p;i++){
@@ -119,20 +130,48 @@ function fire(){
   if(o.userData.ball){ball.vx+=d.x*w.push*(cur?1.6:5);ball.vz+=d.z*w.push*(cur?1.6:5)}else hurt(o.userData.npc,d,w.push,cur===0)}
  if(hit){$('xh').style.color='#f44';setTimeout(()=>$('xh').style.color='#fff',150)}
 }
-function showD(){$('dlg').innerHTML="<b>"+dlg.n.name+"</b><br>"+dlg.n.lines[dlg.i].replace(/{n}/g,nick)+"<small>"+(isTouch?"Ketuk BICARA":"Tekan E")+" untuk lanjut</small>";$('dlg').style.display='block'}
-function closeD(){dlg=null;$('dlg').style.display='none'}
+function showD(){sfx('talk');$('dlg').innerHTML="<b>"+dlg.n.name+"</b><br>"+dlg.n.lines[dlg.i].replace(/{n}/g,nick)+"<small>"+(isTouch?"Ketuk BICARA":"Tekan E")+" untuk lanjut</small>";$('dlg').style.display='block'}
+function closeD(done){if(done&&dlg&&!dlg.n.paid){dlg.n.paid=1;money+=2000;toast('Dapat Rp2.000 dari '+dlg.n.name);setW(cur)}dlg=null;$('dlg').style.display='none'}
 function nearTalker(){let b=null,bd=3.5;for(const n of talk){const d=Math.hypot(n.g.position.x-P.x,n.g.position.z-P.z);if(d<bd){bd=d;b=n}}return b}
-function interact(){if(!started)return;
- if(dlg){if(++dlg.i>=dlg.n.lines.length)closeD();else showD();return}
- const b=nearTalker();if(b){dlg={n:b,i:0};showD()}}
+function interact(){if(!started)return;if(shopOpen){closeShop();return}
+ if(dlg){if(++dlg.i>=dlg.n.lines.length)closeD(1);else showD();return}
+ const b=nearTalker();if(b){dlg={n:b,i:0};showD();return}if(Math.hypot(P.x-WX,P.z-WZ)<4.5)openShop()}
 
+/* ===== Suara ===== */
+let AC=null,NB=null;
+function initAudio(){if(AC)return;try{AC=new (window.AudioContext||window.webkitAudioContext)();NB=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);const d=NB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}catch(e){AC=null}}
+function noise(dur,f0,f1,vol,type){const s=AC.createBufferSource();s.buffer=NB;s.loop=true;const f=AC.createBiquadFilter();f.type=type||'lowpass';f.frequency.setValueAtTime(f0,AC.currentTime);f.frequency.exponentialRampToValueAtTime(f1,AC.currentTime+dur);const g=AC.createGain();g.gain.setValueAtTime(vol,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+dur);s.connect(f);f.connect(g);g.connect(AC.destination);s.start();s.stop(AC.currentTime+dur)}
+function tone(f0,f1,dur,vol,type,delay){const t0=AC.currentTime+(delay||0),o=AC.createOscillator(),g=AC.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f0,t0);o.frequency.exponentialRampToValueAtTime(f1,t0+dur);g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(.001,t0+dur);o.connect(g);g.connect(AC.destination);o.start(t0);o.stop(t0+dur)}
+function sfx(n){if(!AC)return;if(AC.state==='suspended')AC.resume();
+ if(n==='punch'){tone(160,50,.15,.7,'sine');noise(.1,1500,200,.5)}
+ else if(n==='boom'){tone(90,30,.5,1,'sine');noise(.5,3000,100,.9)}
+ else if(n==='pistol'){noise(.18,6000,400,.8);tone(300,60,.12,.3,'square')}
+ else if(n==='shotgun'){noise(.45,5000,150,1);tone(120,35,.35,.7,'sawtooth')}
+ else if(n==='talk'){for(let i=0;i<5;i++)tone(220+Math.random()*180,200+Math.random()*120,.07,.12,'square',i*.08)}
+ else if(n==='jump'){tone(250,600,.18,.25,'sine')}
+ else if(n==='step'){noise(.07,500,200,.25)}
+ else if(n==='run'){noise(.06,900,300,.3)}
+ else if(n==='heal'){tone(520,520,.1,.2,'sine');tone(660,660,.1,.2,'sine',.1);tone(880,880,.18,.2,'sine',.2)}
+ else if(n==='hit'){tone(120,60,.15,.6,'sawtooth');noise(.08,800,200,.5)}
+ else if(n==='buy'){tone(800,1200,.08,.2,'square');tone(1200,1600,.1,.2,'square',.09)}}
+/* ===== Warung: menu ===== */
+const ITEMS=[{n:'Es Teh',p:3000,f:()=>{boost.spd=15;toast('Es teh dingin! Lari lebih cepat 15 detik')}},{n:'Kopi',p:5000,f:()=>{boost.jmp=20;toast('Kopi panas! Lompat lebih tinggi 20 detik')}},{n:'Gorengan',p:2000,f:()=>{heal(10)}},{n:'Nasi Bungkus',p:8000,f:()=>{boost.spd=20;boost.jmp=20;heal(30);toast('Nasi bungkus! +30 HP, lari dan lompat lebih kuat')}},{n:'P3K (obat)',p:6000,f:()=>{kits++;toast('Dapat P3K. Tekan H untuk memakai')}}];
+function heal(n){if(hp>=100){toast('HP sudah penuh');return false}hp=Math.min(100,hp+n);sfx('heal');toast('+'+n+' HP');setW(cur);return true}
+function useKit(){if(!started)return;if(kits<=0){toast('Tidak punya P3K. Beli di warung!');return}if(heal(50)){kits--;toast('P3K dipakai: +50 HP. Sisa '+kits);setW(cur)}}
+function dmg(n){if(!started)return;hp-=n;hurtT=5;sfx('hit');$('hp').style.boxShadow='0 0 10px red';setTimeout(()=>$('hp').style.boxShadow='',150);
+ if(hp<=0){hp=100;P.set(0,1.7,6.5);vy=0;toast('Kamu pingsan! Dibawa ke titik awal.')}}
+function renderShop(){$('shop').innerHTML='<b>Warung Bu Tini</b><br><small>Uangmu: Rp'+money.toLocaleString('id-ID')+'</small>'+ITEMS.map((it,i)=>'<button data-i="'+i+'">'+(i+1)+'. '+it.n+' - Rp'+it.p.toLocaleString('id-ID')+'</button>').join('')+'<button data-i="x" style="background:#555;color:#fff">Tutup (E)</button><small>'+(isTouch?'Ketuk':'Tekan angka')+' untuk beli</small>'}
+function openShop(){shopOpen=true;renderShop();$('shop').style.display='block';sfx('talk');toast('Bu Tini: Mau beli apa, '+nick+'?')}
+function closeShop(){shopOpen=false;$('shop').style.display='none'}
+function buy(i){const it=ITEMS[i];if(money<it.p){toast('Uangmu kurang!');return}money-=it.p;it.f();sfx('buy');renderShop();setW(cur)}
+$('shop').onclick=e=>{const b=e.target.closest('button');if(b){if(b.dataset.i==='x')closeShop();else buy(+b.dataset.i)}};
 /* ===== Input ===== */
 addEventListener('keydown',e=>{const c=e.code;
- if(c==='KeyW')k.w=1;if(c==='KeyS')k.s=1;if(c==='KeyA')k.a=1;if(c==='KeyD')k.d=1;
- if(c==='Space'&&P.y<=1.71)vy=6;
- if(c==='KeyE'&&!e.repeat)interact();
- if(c==='Digit1')setW(0);if(c==='Digit2')setW(1);if(c==='Digit3')setW(2)});
-addEventListener('keyup',e=>{const c=e.code;if(c==='KeyW')k.w=0;if(c==='KeyS')k.s=0;if(c==='KeyA')k.a=0;if(c==='KeyD')k.d=0});
+ if(c.startsWith('Shift'))k.sh=1;if(c==='KeyW')k.w=1;if(c==='KeyS')k.s=1;if(c==='KeyA')k.a=1;if(c==='KeyD')k.d=1;
+ if(c==='Space'&&started&&P.y<=1.71){vy=6*(boost.jmp>0?1.4:1);sfx('jump')}
+ if(c==='KeyE'&&!e.repeat)interact();if(c==='KeyH'&&!e.repeat)useKit();
+ if(shopOpen){if(c.startsWith('Digit')){const q=+c.slice(5);if(q>=1&&q<=ITEMS.length)buy(q-1)}return}if(c==='Digit1')setW(0);if(c==='Digit2')setW(1);if(c==='Digit3')setW(2)});
+addEventListener('keyup',e=>{const c=e.code;if(c.startsWith('Shift'))k.sh=0;if(c==='KeyW')k.w=0;if(c==='KeyS')k.s=0;if(c==='KeyA')k.a=0;if(c==='KeyD')k.d=0});
 addEventListener('mousemove',e=>{if(document.pointerLockElement){yaw-=e.movementX*.0022;pitch=Math.max(-1.4,Math.min(1.4,pitch-e.movementY*.0022))}});
 addEventListener('mousedown',e=>{if(document.pointerLockElement&&e.button===0)fireHeld=true});
 addEventListener('mouseup',()=>fireHeld=false);
@@ -151,18 +190,18 @@ $('go').onclick=()=>{const v=$('nick').value.replace(/[<>&"'`]/g,'').trim().slic
  if(!v){$('err').textContent='Isi nickname dulu.';$('nick').focus();return}
  $('err').textContent='';nick=v;try{localStorage.setItem('nick',v)}catch(e){}
  const c=$('code').value.toLowerCase().replace(/[^a-z0-9_.-]/g,'-').replace(/^[^a-z0-9]+/,'').slice(0,24);
- $('code').value=c;started=true;$('ov').style.display='none';if(!isTouch)ren.domElement.requestPointerLock();
+ $('code').value=c;initAudio();started=true;$('ov').style.display='none';if(!isTouch)ren.domElement.requestPointerLock();
  setW(cur);if(!c){if(room)leaveRoom()}else if(!room||room.name!==c)joinRoom(c)};
 document.addEventListener('pointerlockchange',()=>{if(!isTouch&&!document.pointerLockElement){started=false;fireHeld=false;$('ov').style.display='flex';$('go').textContent='Lanjut'}});
 const tc={},cl=v=>Math.max(-1,Math.min(1,v));
-addEventListener('touchstart',e=>{for(const q of e.changedTouches){if(q.target.closest&&q.target.closest('.btn'))continue;tc[q.identifier]={l:q.clientX<innerWidth/2,sx:q.clientX,sy:q.clientY,lx:q.clientX,ly:q.clientY}}},{passive:false});
+addEventListener('touchstart',e=>{for(const q of e.changedTouches){if(q.target.closest&&q.target.closest('.btn,#shop'))continue;tc[q.identifier]={l:q.clientX<innerWidth/2,sx:q.clientX,sy:q.clientY,lx:q.clientX,ly:q.clientY}}},{passive:false});
 addEventListener('touchmove',e=>{e.preventDefault();for(const q of e.changedTouches){const o=tc[q.identifier];if(!o)continue;
  if(o.l){mv.x=cl((q.clientX-o.sx)/45);mv.z=cl((q.clientY-o.sy)/45)}
  else{yaw-=(q.clientX-o.lx)*.006;pitch=Math.max(-1.4,Math.min(1.4,pitch-(q.clientY-o.ly)*.006));o.lx=q.clientX;o.ly=q.clientY}}},{passive:false});
 const tend=e=>{for(const q of e.changedTouches){const o=tc[q.identifier];if(o&&o.l){mv.x=0;mv.z=0}delete tc[q.identifier]}};
 addEventListener('touchend',tend);addEventListener('touchcancel',tend);
 function bind(id,dn,up){const b=$(id);b.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();dn()},{passive:false});b.addEventListener('touchend',e=>{e.preventDefault();up&&up()})}
-bind('bf',()=>{fireHeld=true},()=>{fireHeld=false});bind('bj',()=>{if(P.y<=1.71)vy=6});bind('be',interact);bind('bw',()=>setW((cur+1)%3));
+bind('bf',()=>{fireHeld=true},()=>{fireHeld=false});bind('bj',()=>{if(started&&P.y<=1.71){vy=6*(boost.jmp>0?1.4:1);sfx('jump')}});bind('be',interact);bind('bh',useKit);bind('bw',()=>setW((cur+1)%3));
 addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight)});
 
 /* ===== Loop ===== */
@@ -173,17 +212,18 @@ function knock(n,dt){if(n.vy||n.g.position.y>0){air(n,dt);return}n.g.position.x+
 const clock=new T.Clock();
 function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);t+=dt;
  if(started){
-  const fw=(k.w?1:0)-(k.s?1:0)-mv.z,st=(k.d?1:0)-(k.a?1:0)+mv.x,sp=5.2*dt,sn=Math.sin(yaw),cs=Math.cos(yaw);
+  const fw=(k.w?1:0)-(k.s?1:0)-mv.z,st=(k.d?1:0)-(k.a?1:0)+mv.x,run=k.sh||Math.hypot(mv.x,mv.z)>1.2,sp=(run?8:5)*(boost.spd>0?1.5:1)*dt,sn=Math.sin(yaw),cs=Math.cos(yaw);
   P.x+=(-sn*fw+cs*st)*sp;P.z+=(-cs*fw-sn*st)*sp;
-  vy-=18*dt;P.y+=vy*dt;if(P.y<1.7){P.y=1.7;vy=0}
+  vy-=18*dt;P.y+=vy*dt;if(P.y<1.7){if(vy<-3)sfx('step');P.y=1.7;vy=0}
   P.x=Math.max(-95,Math.min(95,P.x));P.z=Math.max(-95,Math.min(95,P.z));
   for(const b of col)if(P.x>b.x0-.4&&P.x<b.x1+.4&&P.z>b.z0-.4&&P.z<b.z1+.4){
    const l=P.x-(b.x0-.4),r=b.x1+.4-P.x,tp=P.z-(b.z0-.4),bt=b.z1+.4-P.z,m=Math.min(l,r,tp,bt);
    if(m===l)P.x=b.x0-.4;else if(m===r)P.x=b.x1+.4;else if(m===tp)P.z=b.z0-.4;else P.z=b.z1+.4}
   if(fireHeld)fire();
+  if(P.y<=1.71&&Math.hypot(fw,st)>.2){stepT-=dt;if(stepT<=0){stepT=run?.27:.45;sfx(run?'run':'step')}}else stepT=0;
  }
  cam.rotation.set(pitch,yaw,0);
- cool-=dt;kick=Math.max(0,kick-dt*5);flashT-=dt;if(flashT<=0&&WL[cur].fl)WL[cur].fl.visible=false;
+ cool-=dt;boost.spd-=dt;boost.jmp-=dt;hurtT-=dt;if(hurtT<=0&&hp<100&&started)hp=Math.min(100,hp+3*dt);$('hpi').style.width=hp+'%';$('hpv').textContent=Math.ceil(hp);kick=Math.max(0,kick-dt*5);flashT-=dt;if(flashT<=0&&WL[cur].fl)WL[cur].fl.visible=false;
  const moving=Math.abs(k.w|k.s|k.a|k.d)||Math.hypot(mv.x,mv.z)>.2;
  const bob=moving&&started?Math.sin(t*9)*.012:0;
  for(const g of WL){g.position.set(0,bob,0);g.rotation.x=0}
@@ -196,7 +236,7 @@ function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.
    else if(n.kc<=0){const gx=n.team*FX-ball.position.x,gz=FZ+(Math.random()-.5)*3-ball.position.z,l=Math.hypot(gx,gz)||1;ball.vx=gx/l*10;ball.vz=gz/l*10;n.kc=.7}}
   walk(g,on,0);knock(n,dt)}
  ball.vx*=Math.exp(-1.2*dt);ball.vz*=Math.exp(-1.2*dt);
- if(Math.hypot(P.x-ball.position.x,P.z-ball.position.z)<.9&&P.y<2){const dx=ball.position.x-P.x,dz=ball.position.z-P.z,l=Math.hypot(dx,dz)||1;ball.vx=dx/l*6;ball.vz=dz/l*6}
+ if(Math.hypot(P.x-ball.position.x,P.z-ball.position.z)<.9&&P.y<2){if(Math.hypot(ball.vx,ball.vz)>7)dmg(8);const dx=ball.position.x-P.x,dz=ball.position.z-P.z,l=Math.hypot(dx,dz)||1;ball.vx=dx/l*6;ball.vz=dz/l*6}
  let bx=ball.position.x+ball.vx*dt,bz=ball.position.z+ball.vz*dt;
  if(Math.abs(bx)>FX){if(Math.abs(bz-FZ)<2.5){toast("GOL!");bx=0;bz=FZ;ball.vx=ball.vz=0}else{bx=Math.sign(bx)*FX;ball.vx*=-.7}}
  if(Math.abs(bz-FZ)>FH){bz=FZ+Math.sign(bz-FZ)*FH;ball.vz*=-.7}
@@ -204,12 +244,12 @@ function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.
  // NPC ngobrol
  let near=null;
  for(const n of talk){const g=n.g,dx=P.x-g.position.x,dz=P.z-g.position.z,d=Math.hypot(dx,dz);let on=false;
-  if((dlg&&dlg.n===n)||d<3.2){g.rotation.y=Math.atan2(dx,dz)}
+  if(n.angry>0&&n.ht<=0&&!(dlg&&dlg.n===n)){n.angry-=dt;g.rotation.y=Math.atan2(dx,dz);if(d>1.3){g.position.x+=dx/d*2.6*dt;g.position.z+=dz/d*2.6*dt;on=true}else{n.kc-=dt;if(n.kc<=0){n.kc=1.2;dmg(6);toast(n.name+' memukulmu!')}}}else if((dlg&&dlg.n===n)||d<3.2){g.rotation.y=Math.atan2(dx,dz)}
   else if(n.ht<=0){g.position.x+=n.d*dt;if(Math.abs(g.position.x)>25)n.d*=-1;g.rotation.y=n.d>0?Math.PI/2:-Math.PI/2;on=true}
   walk(g,on,1);knock(n,dt);
   if(dlg&&dlg.n===n&&d>5)closeD()}
- near=nearTalker();$('pr').style.display=(near&&!dlg&&started)?'block':'none';
- if(isTouch)$('pr').textContent="Ketuk BICARA";
+ near=nearTalker();const nw=Math.hypot(P.x-WX,P.z-WZ)<4.5;if(shopOpen&&Math.hypot(P.x-WX,P.z-WZ)>6)closeShop();$('pr').style.display=((near||nw)&&!dlg&&!shopOpen&&started)?'block':'none';$('pr').textContent=(isTouch?'Ketuk BICARA':'Tekan E')+(near?' untuk bicara':' untuk ke warung');
+ 
  ps-=dt;if(room&&ps<=0){ps=.1;room.presence({n:nick,x:+P.x.toFixed(2),z:+P.z.toFixed(2),r:+yaw.toFixed(2)}).catch(()=>{})}
  for(const id in remotes){const r=remotes[id],g=r.g,dx=r.tx-g.position.x,dz=r.tz-g.position.z,m=Math.hypot(dx,dz)>.03,f=Math.min(1,dt*10);g.position.x+=dx*f;g.position.z+=dz*f;let da=r.tr+Math.PI-g.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));g.rotation.y+=da*f;walk(g,m,2)}
  ren.render(scene,cam)}

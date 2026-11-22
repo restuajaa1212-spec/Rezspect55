@@ -1,7 +1,7 @@
 name: Build APK
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
 jobs:
   build:
@@ -16,17 +16,18 @@ jobs:
         run: |
           npm install
           npm run build
-      - name: Add Android platform
+      - name: Generate Android project
         run: |
           npx cap add android
           npx cap sync android
-          # Paksa mode landscape
-          sed -i 's/<activity/<activity android:screenOrientation="sensorLandscape"/' android/app/src/main/AndroidManifest.xml
+          # Kunci orientasi landscape
+          sed -i 's/<activity/<activity android:screenOrientation="landscape"/' android/app/src/main/AndroidManifest.xml
       - name: Build debug APK
         run: |
-          chmod +x android/gradlew
-          cd android && ./gradlew assembleDebug --no-daemon
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: DesaExplorer-APK
+          name: desa-perang-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk

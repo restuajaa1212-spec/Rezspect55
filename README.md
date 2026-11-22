@@ -1,53 +1,21 @@
-# 🏡 Desa Explorer 3D — © rez x Gunz (MIT)
+# Desa Perang 3D — © 2026 rez x Gunz (MIT)
 
-Game eksplorasi desa 3D (Three.js + Vite) yang dibungkus Capacitor menjadi APK lewat GitHub Actions.
+Game eksplorasi desa 3D (Three.js + Vite) → APK lewat Capacitor + GitHub Actions.
 
 ## Struktur
 ```
-desa-explorer-3d/
-├─ .github/workflows/build-apk.yml   # CI: build web -> APK debug
-├─ index.html / package.json / vite.config.js / capacitor.config.json
-├─ src/  main.js world.js lobby3d.js skins.js npc.js controls.js audio.js net.js util.js style.css
-└─ server/server.js                  # server lobby/room multiplayer (opsional)
+index.html  package.json  vite.config.js  capacitor.config.json  LICENSE
+.github/workflows/build-apk.yml
+src/main.js (loop, jam, suara lingkungan) | world.js (desa, markas, perang)
+src/player.js | controls.js (stik & tombol) | intro.js (cutscene truk) | audio.js
 ```
 
-## Build APK (GitHub Actions)
-1. Buat repo GitHub baru, upload **isi** folder ini (pastikan folder `.github` ikut) ke branch `main`.
-2. Buka tab **Actions** → workflow *Build APK* jalan otomatis (atau *Run workflow*).
-3. Selesai → unduh artifact **DesaExplorer-APK** (`app-debug.apk`), install di HP.
+## Build APK via GitHub (tanpa error)
+1. Buat repo baru di GitHub, lalu upload SEMUA isi folder ini (termasuk folder `.github`).
+   Pastikan `.github/workflows/build-apk.yml` ada di root repo.
+2. Branch harus `main` atau `master`. Push akan memicu build otomatis
+   (atau tab **Actions → Build APK → Run workflow**).
+3. Setelah hijau, unduh **desa-perang-apk** di bagian *Artifacts* → ekstrak → `app-debug.apk`.
 
-Lewat Termux (git): `pkg install git` → `git init && git add -A && git commit -m init && git remote add origin <url> && git push -u origin main`.
-
-## Jalankan lokal
-`npm install && npm run dev`  (keyboard: WASD, Spasi, C, Shift, E, F=serang, Q=ganti senjata, H=heal, mouse drag=bidik)
-
-## Multiplayer (4 pemain)
-Jalankan server: `npm install && npm run server` (port 8080) di Termux/PC/hosting (Render, dll).
-Di lobby isi URL server (`ws://IP:8080`, atau `wss://…` jika hosting HTTPS), **Buat Room** → bagikan kode → teman **Gabung Room** → host tekan **Mulai**.
-Catatan: posisi pemain disinkronkan; NPC berjalan lokal di tiap perangkat.
-
-## Lobi, skin & PVP
-- Lobi: panggung 3D 4 slot. Ganti skin dengan ◀ ▶ (7 skin). Teman yang masuk room muncul di panggung beserta skin-nya.
-- Senjata: 👊 Tinju (jarak dekat, 12 dmg) dan 🔫 Pistol (12 peluru, 20 dmg, headshot 40, reload otomatis). Ganti senjata dengan tombol kecil di atas 💥.
-- Kamera orang pertama (FPS): hanya tangan & pistol yang terlihat, dengan crosshair. Peluru terhalang bangunan/pohon.
-- Heal: tombol 🩹 memakai medkit (+40 HP, mulai 3 medkit). Bicara dengan Suster Ani di Klinik = HP penuh + medkit terisi lagi.
-- Warga (NPC bernama) punya 60 HP: bisa ditembak/dipukul sampai tumbang, lalu bangkit lagi setelah 12 detik.
-- HP 100 per pemain, mati → respawn 3 detik di halte. 
-
-## Intro, tank & rumah hancur
-- Intro: pesawat melintas, pemain terjun, freefall, parasut mengembang di 60 m, lalu mendarat dekat halte (bisa dilewati).
-- 4 tank + karung pasir di tepi jalan (menaranya berputar pelan).
-- 8 rumah hancur total (puing, dinding patah, api, asap). Rudal jatuh berkala ke reruntuhan dengan ledakan, suara, dan guncangan layar.
-
-## Senjata & militer
-- Senjata yang bisa diambil (peti bercahaya, muncul lagi 30 detik): 🔫 Pistol (awal), ⚡ SMG (full-auto), 💥 Shotgun (8 peluru), 🎯 Senapan (full-auto), 🔭 Sniper (zoom, 70 dmg). Juga peti Amunisi dan Medkit. Tombol ganti senjata memutar semua senjata yang dimiliki. Mati = kehilangan senjata.
-- Semua NPC kini militer (seragam loreng, helm, rompi); kendaraan: jip & truk militer; Medis Ani di Pos Medis memulihkan HP.
-
-## Perang & bunker
-- ✈️ Pesawat pembom lewat tiap ±60 detik dan menjatuhkan 6 bom (ledakan, kawah hangus, guncangan, damage ≤45 dalam radius 10).
-- 🛡️ Bunker beton di selatan jalan (sekitar 30 m dari halte): bisa dimasuki, bom tidak melukai di dalamnya. Ada ranjang, meja peta, dan item di dalam. Bendera Merah Putih berkibar di atas atapnya.
-- Jalan retak, berlubang, dan ada kawah; 10 bangkai mobil (sebagian terbakar & terbalik) di sepanjang jalan.
-- Prajurit yang kamu tembak/pukul (atau tembakannya nyaris mengenai mereka) menjadi marah: mengejar, menembak (8 dmg), atau memukul jarak dekat; rekan dalam radius 30 m ikut marah. Mereka berhenti jika kehilangan jejak ~30 detik. Medis Ani tidak menyerang.
-
-## Kontrol
-Stik kiri = jalan · geser layar = bidik/kamera · 💥 Serang (tahan) · 🔫/👊 ganti senjata · ⤒ Loncat · ▾ Jongkok (toggle) · » Lari (tahan) · 💬 bicara dengan NPC terdekat.
+Uji di PC: `npm install && npm run dev` (WASD, Shift lari, C jongkok, Spasi loncat).
+Catatan: folder `android/` dibuat otomatis oleh workflow, jangan diunggah.
